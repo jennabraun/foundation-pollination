@@ -82,7 +82,7 @@ shrubs$N.flowers.scaled <- scale(shrubs$N.flowers)
 
 #GLMM model 
 
-m1 <- glmer.nb(Quantity ~ shrub.density +Species + N.flowers.scaled * site.shrub.density + (1|Date), data = shrubs)
+m1 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
 summary(m1)
 car::Anova(m1, type = 3)
 
