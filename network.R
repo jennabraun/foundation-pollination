@@ -107,11 +107,15 @@ cov <- mutate(cov, cactus.density = SC+PP+HH)
 cov.fil <- filter(cov, Species != "KE" & Species !="X")
 
 
-ggplot(cov, aes(lower.level.degree)) + geom_freqpoly()
+ggplot(cov, aes(lower.level.degree)) + geom_density()
 
-m1 <- glm(lower.level.d ~ N.flowers, family = "poisson", data = cov)
+shapiro.test(cov$lower.level.d)
+shapiro.test(cov$lower.level.degree)
+m1 <- glm(lower.level.degree ~ N.flowers*Species + density, family = "Gamma", data = cov)
 summary(m1)
 
+m2 <- glm(lower.level.degree ~ N.flowers + density, family = "poisson", data = cov)
+summary(m2)
 
 #calculate conspecific and heterospecific densities for each species
 cov.fil <- mutate(cov.fil, con.density = ifelse(Species == "PP.x", PP,+
