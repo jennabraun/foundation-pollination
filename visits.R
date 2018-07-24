@@ -7,6 +7,8 @@ library(glmmTMB)
 library(lsmeans)
 library(car)
 library(jtools)
+library(vegan)
+
 
 wb <- loadWorkbook("Data/Observations Data.xlsx")
 cov <- readWorksheet(wb, "Covariates")
@@ -36,10 +38,10 @@ count(visits, Species)
 
 #collapse visits by rep
 all.ag <- visits %>% group_by(uniID) %>% summarise(Quantity = sum(Quantity))
-cov$Quantity[is.na(cov$Quantity)] <- 0
-cov <- left_join(cov, all.ag, by = "uniID")
-cov[10:23][is.na(cov[10:23])] <- 0
 
+cov <- left_join(cov, all.ag, by = "uniID")
+cov[11:21][is.na(cov[11:21])] <- 0
+cov$Quantity[is.na(cov$Quantity)] <- 0
 cov <- mutate(cov, density = LT+AS+EC+SD+SM+SC+PP+HH+EL+LOTUS+BW)
 cov <- mutate(cov, shrub.density = LT+AS+EC+SM+EL+LOTUS+BW+SD)
 cov <- mutate(cov, cactus.density = SC+PP+HH)
@@ -75,22 +77,42 @@ cov.fil <- left_join(cov.fil, dense, by = "Date")
 shrubs <- filter(cov.fil, Species != "PP" & Species != "HH" & Species != "SC")
 shrubs$N.flowers.scaled <- scale(shrubs$N.flowers)
 
-
-
-
-
+#calculate and shrub add diversity   
+wide.shrub <- select(shrubs, 11:21)
+S <- specnumber(wide.shrub)
+shrubs <- cbind(shrubs, S)
 
 #GLMM model 
 
-m1 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
+m1 <- glmer.nb(Quantity ~ S + shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
 summary(m1)
 car::Anova(m1, type = 3)
 
-m2 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), data = cov.fil)
+
+m1 <- glmer(Quantity ~ shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), family = "poisson", data = shrubs)
+
+summary(m1)
+
+m2 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled  * site.shrub.density + (1|Species), data = shrubs)
+summary(m2)
+
+
+m3 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled  * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
+summary(m2)
+
+plot(residuals(m3))
+
+AIC(m1,m2,m3)
+
+overdisp_fun(m2)
+hapiro.test(resid(m2))
 
 
 ssd <- shrubs$site.shrub.density
 
+
+
+plot(residuals(m2)~fitted.values(m2))
 
 
 ggplot(shrubs, aes(con.density, Quantity)) + geom_point() +  geom_smooth(method = "lm") + facet_grid(~Species, scale = "free") + geom_smooth(aes(het.density, Quantity, method = "lm", color = "red"))
@@ -119,9 +141,11 @@ ggshrub <- select(shrubs, Species, Quantity, shrub.density, con.density, het.den
 test <- gather(ggshrub, key = Type, value = density, shrub.density, con.density, het.density, -Species)
 
 
-ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth(method = "lm") + facet_grid(~Species, scale = "free")
+ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth(method = "lm") + facet_grid(~Species, scale = "free") + theme_Publication() + xlab("Shrub Density within 3 m") + ylab("Pollinator Visitation") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific", "Combined"))
 
 ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth() + theme_Publication() + xlab("Shrub Density within 3 m") + ylab("Pollinator Visitation") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific", "Combined"))
 
 ggplot(shrubs, aes(shrub.density, Quantity)) + geom_smooth(method="lm")
-                                                                                                                                                                                                                                                         
+                                                                      
+ggplot(shrubs, aes(Quantity)) + geom_density()
+                                                                                                                                                                                
