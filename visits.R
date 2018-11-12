@@ -19,7 +19,7 @@ cov$NN.id <- as.factor(cov$NN.id)
 cov$dist.lar <- as.numeric(cov$dist.lar)
 cov$uniID <- paste(cov$Species, cov$Waypoint)
 
-visits <- dplyr::select(visits, 1:7)
+visits <- dplyr::select(visits, 1:8)
 visits <- dplyr::select(visits, -Col4)
 
 
@@ -71,6 +71,8 @@ cov.fil <- mutate(cov.fil, het.density = shrub.density - con.density)
 #join site density
 dense <- select(dense, Date, site.density, site.shrub.density, site.cactus.density)
 cov.fil <- left_join(cov.fil, dense, by = "Date")
+#output this derived dataframe
+write.csv(cov.fil, "visitation.csv")
 
 
 #shrubs only

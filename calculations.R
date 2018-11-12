@@ -9,10 +9,10 @@ wide <- select(wide, -Species)
 
 
 ggplot(aes(Quantity), data = cov, fill = Species) + geom_histogram(binwidth = 1)
-mat <- as.matrix(wide)
+mat <- as.matrix(iwide)
 ggplot(aes(Quantity, fill = Species), data = cov) + geom_bar()
 library(rnetcarto)
-netcarto(mat, bipartite = TRUE)
+inet <- netcarto(mat, bipartite = TRUE)
 netcarto(igraph::get.adjacency(wide,sparse=FALSE))
 
 
@@ -24,6 +24,7 @@ inet <- netcarto(imat, bipartite = TRUE)
 conn <- inet[1]
 conn <- as.data.frame(conn)
 conn$uniID <- conn$name
+write.csv(conn, "modules.csv")
 cov <- right_join(conn, cov, by = "uniID")
 
 spat <- read.csv("plant_sp_data.csv")

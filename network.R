@@ -4,6 +4,7 @@ library(tidyr)
 library(igraph)
 library(vegan)
 library(ggplot2)
+visits <- read.csv("Data/visits.csv")
 visits$Site <- "site"
 str(visits)
 net <- dplyr::select(visits, Species, ID, Site, Quantity)
@@ -11,13 +12,13 @@ net$Quantity <- as.numeric(net$Quantity)
 
 
 long.ag <- net %>% group_by(Species, ID) %>% summarise(Quantity = sum(Quantity)) 
-wide <- spread(long.ag, ID, Quantity)
+wide <- spread(long.ag, Species, Quantity)
 wide[is.na(wide)] <- 0
 wide <- as.data.frame(wide)
 rownames(wide) = wide[,1 ] # the first row will be the header
 rownames(wide) <- wide[,1]
 
-count <- count(net, ID)
+count <- count(net, Species)
 sum(count$n)
 
 wide <- dplyr::select(wide, -Species)
@@ -41,11 +42,13 @@ iwide[is.na(iwide)] <- 0
 iwide <- as.data.frame(iwide)
 rownames(iwide) = iwide[,1 ] # the first row will be the header
 rownames(iwide) <- iwide[,1]
-
+write.csv(iwide, "iwide.csv")
 count <- count(net, ID)
 sum(count$n)
 
 iwide <- dplyr::select(iwide, -uniID)
+write.csv(iwide, "indnet.csv")
+
 plotweb(iwide,text.rot = 90)
 
 
