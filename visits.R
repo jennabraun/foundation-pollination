@@ -110,7 +110,7 @@ overdisp_fun(m2)
 hapiro.test(resid(m2))
 
 
-ssd <- shrubs$site.shrub.density
+
 
 
 
@@ -121,26 +121,28 @@ ggplot(shrubs, aes(con.density, Quantity)) + geom_point() +  geom_smooth(method 
 
 ggplot(shrubs, aes(het.density, Quantity)) + geom_point() +  geom_smooth(method = "lm") + facet_grid(~Species, scale = "free")
 
-
-shrubs$ssd_3group <- case_when(ssd > mean(ssd, na.rm = TRUE)+sd(ssd, na.rm = TRUE) ~ "high",
+ssd <- visits$N.flowers
+visits$ssd_3group <- case_when(ssd > mean(ssd, na.rm = TRUE)+sd(ssd, na.rm = TRUE) ~ "high",
             ssd < mean(ssd, na.rm = TRUE)+sd(ssd, na.rm = TRUE) & ssd > mean(ssd, na.rm = TRUE)-sd(ssd, na.rm = TRUE) ~ "average",
             ssd < mean(ssd, na.rm = TRUE)-sd(ssd, na.rm = TRUE) ~ "low")
 
-count(shrubs, ssd_3group)
+count(visits, ssd_3group)
 
+mean(ssd)
+sd(ssd)
 
-shrubs %>% 
+visits %>% 
   ggplot() +
-  aes(x = N.flowers, y = Quantity, group = ssd_3group, color = ssd_3group) +
+  aes(x = site.density, y = Quantity, group = ssd_3group, color = ssd_3group) +
   geom_point(color = "grey", alpha = .7) +
-  geom_smooth(method = "lm") + xlab("Number of flowers per shrub") + ylab("Pollinator Visits") + theme_Publication() +  scale_color_discrete(name = "Site level shrub density")
+  geom_smooth(method = "lm") + ylab("Pollinator Visits") 
 
 
-
+library(tidyr)
 
 #need to reshape dataframe to make the plots I want
-ggshrub <- select(shrubs, Species, Quantity, shrub.density, con.density, het.density)
-test <- gather(ggshrub, key = Type, value = density, shrub.density, con.density, het.density, -Species)
+ggshrub <- dplyr::select(visits, Species, Quantity, shrub.density, con.density, het.density)
+test <- gather(ggshrub, key = Type, value = shrub.density, con.density, het.density, -Species)
 
 
 ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth(method = "lm") + facet_grid(~Species, scale = "free") + theme_Publication() + xlab("Shrub Density within 3 m") + ylab("Pollinator Visitation") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific", "Combined"))

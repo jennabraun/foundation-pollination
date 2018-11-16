@@ -6,6 +6,12 @@ library(ggplot2)
 library(glmmTMB)
 library(lsmeans)
 visits <- read.csv("visitation.csv")
+imdens <- read.csv("Output/imputedensity.csv")
+
+imdens <- mutate(imdens, im.site = rowSums(imdens[7:16]))
+
+#join to visits
+visits <- imdens %>% select(.,Date, im.site) %>% left_join(visits,., by = "Date")
 
 
 sum(visits$Quantity)
@@ -20,8 +26,32 @@ ggplot(visits, aes(N.flowers, Quantity, fill = Species)) + geom_smooth()
 #models A
 visits$N.flowers.scaled <- scale(visits$N.flowers)
 
-m1 <- glmer.nb(Quantity ~ shrub.density + N.flowers + site.density + (1|Species), data = visits)       
+m1 <- glmer.nb(Quantity ~  density+ N.flowers.scaled + im.site + (1|Species), data = visits)       
 summary(m1)
+
+m2 <- glmer.nb(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), data = visits)       
+summary(m2)
+AIC(m1,m2)
+anova(m1,m2)
+
+
+
+shrubs <- filter(visits, Species != "PP" & Species != "HH" & Species != "SC")
+
+shrubs$N.flowers.scaled <- scale(shrubs$N.flowers)
+
+m1 <- glmer.nb(Quantity ~  shrub.density+ N.flowers.scaled + site.density + (1|Species), data = shrubs)    
+
+summary(m1)
+
+m2 <- glmer.nb(Quantity ~ het.density + N.flowers.scaled * site.density+ (1|Species), data = shrubs)       
+summary(m2)
+AIC(m1,m2)
+anova(m1,m2)
+
+
+
+
 
 
 m2 <- glmmTMB(Quantity ~ shrub.density + N.flowers * site.density + (1|Species), data = visits, family = "nbinom2")
@@ -33,8 +63,20 @@ glht(m2, ~ N.flowers, pairwise = TRUE)
 m3 <- glmer.nb(Quantity ~ shrub.density + N.flowers * site.density + (1|Species), data = visits)
 summary(m3)
 library(jtools)
-interact_plot(m3, pred = "N.flowers", modx = "site.density")
-interact_plot(m3, pred = "site.density", modx = "N.flowers")
+interact_plot(m2, pred = "N.flowers.scaled", modx = "site.density")
+interact_plot(m2, pred = "site.density", modx = "N.flowers.scaled")
+
+
+
+
+
+
+
+
+
+
+
+
 
 m4<- glm.nb(Quantity ~ shrub.density+ N.flowers * site.density + EC*Species, data = visits)
 summary(m4)
