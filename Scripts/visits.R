@@ -1,40 +1,31 @@
 library(dplyr)
 library(ggplot2)
 library(tidyr)
-library(XLConnect)
-library(lme4)
-library(glmmTMB)
-library(lsmeans)
-library(car)
-library(jtools)
 library(vegan)
 
-
-wb <- loadWorkbook("Data/Observations Data.xlsx")
-cov <- readWorksheet(wb, "Covariates")
-visits <- readWorksheet(wb, "Visits")
+cov <- read.csv("Data/focal_shrub_covariates.csv")
+visits <- read.csv("Data/visitation_data.csv")
 #vouch <- readWorksheet(wb, "Specimens")
 str(cov)
 cov$NN.id <- as.factor(cov$NN.id)
 cov$dist.lar <- as.numeric(cov$dist.lar)
 cov$uniID <- paste(cov$Species, cov$Waypoint)
 
-visits <- dplyr::select(visits, 1:8)
-visits <- dplyr::select(visits, -Col4)
+visits <- dplyr::select(visits, 3:12)
+visits <- dplyr::select(visits, -X)
 
 
 visits$uniID <- paste(visits$Species, visits$WP)
 str(visits)
 visits$Quantity <- as.numeric(visits$Quantity)
-visits <- filter(visits, Quantity >0)
+#visits <- filter(visits, Quantity >0)
 
 visits$ID <- gsub(" ","", visits$ID)
 visits$ID <- gsub('\"',"", visits$ID)
 visits$Species <- gsub(" ","", visits$Species)
 visits$Species <- gsub('\"',"", visits$Species)
 counts <- count(visits, ID)
-count(visits, Species)
-
+counts <- count(visits, Species)
 
 #collapse visits by rep
 all.ag <- visits %>% group_by(uniID) %>% summarise(Quantity = sum(Quantity))
@@ -54,7 +45,7 @@ cov.fil <- filter(cov, Species != "KE" & Species !="X")
 
 
 #calculate conspecific and heterospecific densities for each species
-cov.fil <- mutate(cov.fil, con.density = ifelse(Species == "PP.x", PP,+
+cov.fil <- mutate(cov.fil, con.density = ifelse(Species == "PP", PP,+
                                 ifelse(Species == "SC", SC,+
                                 ifelse(Species == "HH", HH, 
                               ifelse(Species == "LT",LT, +
@@ -67,22 +58,57 @@ cov.fil <- mutate(cov.fil, con.density = ifelse(Species == "PP.x", PP,+
 cov.fil <- mutate(cov.fil, het.density = shrub.density - con.density)
 
 
+#density wrangling, without imputation
+
+density <- read.csv("Data/density_estimates.csv")
+density[is.na(density)] <- 0
+density <- filter(density, Site == "lower")
+dens.ag <- aggregate(.~Date, data = density, sum)
+#dens.ag <- gather(dens.ag, "Shrub", "n", 6:15)
+#day <- dplyr::select(density, Date, Day)
+#day <- distinct(day)
+#dens.ag <- inner_join(dens.ag, day, by = "Date")
+#dens.ag <- mutate(dens.ag, fl.dens = n/Area)
+#ggplot(dens.ag, aes(Day.y, fl.dens)) + geom_smooth(model = lm, aes(fill = Shrub)) 
+#ggplot(dens.ag, aes(Day.y, fl.dens)) + geom_area(aes(fill = Shrub))
+dense <- dens.ag
+#dense <- spread(dens.ag, Shrub, fl.dens)
+#dense <- select(dense, -Day.x:-Day.y)
+
+#dense[2:11][is.na(dense[2:11])] <- 0
+dense <- mutate(dense, site.density = (LT+AS+EC+SD+SM+SC+PP+HH+EL+BW)/Area)
+dense <- mutate(dense, site.shrub.density = (LT+AS+EC+SM+EL+BW)/Area)
+dense <- mutate(dense, site.cactus.density = (SC+PP+HH)/Area)
+
+
 
 #join site density
 dense <- select(dense, Date, site.density, site.shrub.density, site.cactus.density)
 cov.fil <- left_join(cov.fil, dense, by = "Date")
 #output this derived dataframe
-write.csv(cov.fil, "visitation.csv")
+
+counts <- count(cov.fil, Species)
+
+
+write.csv(cov.fil, "Data/Output/visitation_cleaned.csv")
 
 
 #shrubs only
 shrubs <- filter(cov.fil, Species != "PP" & Species != "HH" & Species != "SC")
 shrubs$N.flowers.scaled <- scale(shrubs$N.flowers)
 
-#calculate and shrub add diversity   
+#calculate shrub add diversity   
 wide.shrub <- select(shrubs, 11:21)
 S <- specnumber(wide.shrub)
 shrubs <- cbind(shrubs, S)
+
+
+
+
+
+
+
+
 
 #GLMM model 
 

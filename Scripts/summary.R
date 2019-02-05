@@ -1,7 +1,9 @@
 #summary stats, viz
 library(vegan)
-cov <- read.csv("visitation.csv")
+library(dplyr)
+cov <- read.csv("Data/focal_shrub_covariates.csv")
 tbl1 <- count(cov, Species)
+
 tbl1 <- cov %>% group_by(Species) %>% summarise(mean(Quantity), sd(Quantity), min(Quantity), max(Quantity)) %>% left_join(., tbl1, by = "Species")
 
 fn.grp <- count(visits, fun.grp)
