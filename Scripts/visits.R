@@ -7,28 +7,54 @@ cov <- read.csv("Data/focal_shrub_covariates.csv")
 visits <- read.csv("Data/visitation_data.csv")
 #vouch <- readWorksheet(wb, "Specimens")
 str(cov)
+visits$Quantity <- as.numeric(as.character(visits$Quantity))
+sum(visits$Quantity)
 cov$NN.id <- as.factor(cov$NN.id)
 cov$dist.lar <- as.numeric(cov$dist.lar)
+cov$Species <- gsub(" ","", cov$Species)
+cov$Species <- gsub('\"',"", cov$Species)
+cov$Waypoint <- gsub(" ","", cov$Waypoint)
+cov$Waypoint <- gsub('\"',"", cov$Waypoint)
+
 cov$uniID <- paste(cov$Species, cov$Waypoint)
 
 visits <- dplyr::select(visits, 3:12)
 visits <- dplyr::select(visits, -X)
 
 
-visits$uniID <- paste(visits$Species, visits$WP)
+
 str(visits)
-visits$Quantity <- as.numeric(visits$Quantity)
+#visits$Quantity <- as.numeric(visits$Quantity)
 #visits <- filter(visits, Quantity >0)
+sum(visits$Quantity)
 
 visits$ID <- gsub(" ","", visits$ID)
 visits$ID <- gsub('\"',"", visits$ID)
 visits$Species <- gsub(" ","", visits$Species)
 visits$Species <- gsub('\"',"", visits$Species)
+visits$WP <- gsub(" ","", visits$WP)
+visits$WP <- gsub('\"',"", visits$WP)
+visits$uniID <- paste(visits$Species, visits$WP)
+
+
+
 counts <- count(visits, ID)
 counts <- count(visits, Species)
+counts <- count(cov, Species)
 
 #collapse visits by rep
 all.ag <- visits %>% group_by(uniID) %>% summarise(Quantity = sum(Quantity))
+str(all.ag)
+
+#still good here
+sum(all.ag$Quantity)
+
+#make sure all of the id's match up between datasets
+test <- anti_join(all.ag, cov, by = "uniID")
+
+#one of the prickly pears was accidently survey twice and messing up the join
+#remove the latter
+cov <- cov[-3,]
 
 cov <- left_join(cov, all.ag, by = "uniID")
 cov[11:21][is.na(cov[11:21])] <- 0
@@ -36,6 +62,9 @@ cov$Quantity[is.na(cov$Quantity)] <- 0
 cov <- mutate(cov, density = LT+AS+EC+SD+SM+SC+PP+HH+EL+LOTUS+BW)
 cov <- mutate(cov, shrub.density = LT+AS+EC+SM+EL+LOTUS+BW+SD)
 cov <- mutate(cov, cactus.density = SC+PP+HH)
+
+str(cov)
+sum(cov$Quantity)
 
 #take out the single species
 cov.fil <- filter(cov, Species != "KE" & Species !="X")
@@ -89,7 +118,12 @@ cov.fil <- left_join(cov.fil, dense, by = "Date")
 
 counts <- count(cov.fil, Species)
 
+#add species richness
+wide.all <- select(cov.fil, 11:21)
+S <- specnumber(wide.all)
+cov.fil <- cbind(cov.fil, S)
 
+sum(cov.fil$Quantity)
 write.csv(cov.fil, "Data/Output/visitation_cleaned.csv")
 
 
@@ -104,78 +138,33 @@ shrubs <- cbind(shrubs, S)
 
 
 
+##I also want a functional grp specific
 
 
+fg.ag <- visits %>% filter(Quantity >0) %>% group_by(uniID, fun.grp) %>% summarise(Quantity = sum(Quantity))
+str(fg.ag)
+fg <- spread(fg.ag, fun.grp, Quantity)
+
+test <- anti_join(fg, cov, by = "uniID")
+
+#fill in NA with zeros
+
+fg[2:10][is.na(fg[2:10])] <- 0
+
+#one of the prickly pears was accidently survey twice and messing up the join
+#remove the latter
+
+cov <- left_join(cov, fg, by = "uniID")
+cov[27:35][is.na(cov[27:35])] <- 0
 
 
+#take out the single species
+cov.fil <- filter(cov, Species != "KE" & Species !="X")
 
+cov.fil <- gather(cov.fil, rtu, visits, 27:35)
 
-#GLMM model 
-
-m1 <- glmer.nb(Quantity ~ S + shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
-summary(m1)
-car::Anova(m1, type = 3)
-
-
-m1 <- glmer(Quantity ~ shrub.density + N.flowers.scaled * site.shrub.density + (1|Species) + (1|Date), family = "poisson", data = shrubs)
-
-summary(m1)
-
-m2 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled  * site.shrub.density + (1|Species), data = shrubs)
-summary(m2)
-
-
-m3 <- glmer.nb(Quantity ~ shrub.density + N.flowers.scaled  * site.shrub.density + (1|Species) + (1|Date), data = shrubs)
-summary(m2)
-
-plot(residuals(m3))
-
-AIC(m1,m2,m3)
-
-overdisp_fun(m2)
-hapiro.test(resid(m2))
-
-
-
-
-
-
-plot(residuals(m2)~fitted.values(m2))
-
-
-ggplot(shrubs, aes(con.density, Quantity)) + geom_point() +  geom_smooth(method = "lm") + facet_grid(~Species, scale = "free") + geom_smooth(aes(het.density, Quantity, method = "lm", color = "red"))
-
-ggplot(shrubs, aes(het.density, Quantity)) + geom_point() +  geom_smooth(method = "lm") + facet_grid(~Species, scale = "free")
-
-ssd <- visits$N.flowers
-visits$ssd_3group <- case_when(ssd > mean(ssd, na.rm = TRUE)+sd(ssd, na.rm = TRUE) ~ "high",
-            ssd < mean(ssd, na.rm = TRUE)+sd(ssd, na.rm = TRUE) & ssd > mean(ssd, na.rm = TRUE)-sd(ssd, na.rm = TRUE) ~ "average",
-            ssd < mean(ssd, na.rm = TRUE)-sd(ssd, na.rm = TRUE) ~ "low")
-
-count(visits, ssd_3group)
-
-mean(ssd)
-sd(ssd)
-
-visits %>% 
-  ggplot() +
-  aes(x = site.density, y = Quantity, group = ssd_3group, color = ssd_3group) +
-  geom_point(color = "grey", alpha = .7) +
-  geom_smooth(method = "lm") + ylab("Pollinator Visits") 
-
-
-library(tidyr)
-
-#need to reshape dataframe to make the plots I want
-ggshrub <- dplyr::select(visits, Species, Quantity, shrub.density, con.density, het.density)
-test <- gather(ggshrub, key = Type, value = shrub.density, con.density, het.density, -Species)
-
-
-ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth(method = "lm") + facet_grid(~Species, scale = "free") + theme_Publication() + xlab("Shrub Density within 3 m") + ylab("Pollinator Visitation") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific", "Combined"))
-
-ggplot(test, (aes(density, Quantity, group = Type, color = Type))) + geom_point(color = "grey", alpha = .7) + geom_smooth() + theme_Publication() + xlab("Shrub Density within 3 m") + ylab("Pollinator Visitation") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific", "Combined"))
-
-ggplot(shrubs, aes(shrub.density, Quantity)) + geom_smooth(method="lm")
-                                                                      
-ggplot(shrubs, aes(Quantity)) + geom_density()
-                                                                                                                                                                                
+#lol so much better than the other way
+cov.fil <- select(cov.fil, -Quantity)
+sum(cov.fil$visits)
+#YAS
+write.csv(cov.fil, "Data/Output/visitation_RTU_cleaned.csv")                                                      
