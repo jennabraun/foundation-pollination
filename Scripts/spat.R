@@ -2,18 +2,40 @@
 library(rgdal)
 library(tidyr)
 library(maptools)
+library(sf)
+library(spdep)
 
-plants <- readOGR("Spatial/GPX/Plants20182.shp")
-plant.data <- plants@data
-plant.data$Name <- gsub("LOW", "L", plant.data$Name)
-plant.data$Name <- gsub("UP", "L", plant.data$Name)
-plant.data <- separate(plant.data, Name, c("site", "name"), sep = 1)
-plant.data$name <- gsub("[^0-9]", "", plant.data$name)
-cov <- rename(cov, name = Waypoint)
-cov$name <- as.character(cov$name)
-cov <- cov[-3,]
-plant.data <- left_join(plant.data, cov, by = "name")                 
-plant.data <- distinct(plant.data)
-plant.data <- plant.data[-22,]
-plants@data <- plant.data
-write.csv(plant.data, "plant_sp_data.csv")
+plants <- st_read("Data/Raw Data/PlantGPS_PR.shp")
+net <- read.csv("Data/Output/ind_network_indices.csv")
+plot(plants)
+plants$Waypoint <- readr::parse_number(plants$Name)
+
+#remove x and ke
+plants <- filter(plants, Name != "L282KE" & Name != "LOW63X")
+
+spdata <- left_join(plants, net, by = "Waypoint")
+plot(spdata)
+is.na(spdata$Quantity)
+
+#test for spatial autocorelation in visitation rates
+data.sp <- as(spdata, "Spatial")
+w <- knearneigh(data.sp, 4)
+w.nb <- knn2nb(w)
+nblist <-  nb2listw(w.nb, style='W')
+moran.mc(data.sp$Quantity, nblist, nsim = 999)
+data.sp$Quantity
+#moran's non-significant
+
+moran.mc(data.sp$Quantity, nblist, nsim = 999)
+
+#calculate for network indices
+net.sp <- filter(spdata, Quantity > 0)
+net.sp <- as(net.sp, "Spatial")
+net.w <- knearneigh(net.sp, 4)
+net.nb <- knn2nb(net.w)
+netnblist <-  nb2listw(net.nb, style='W')
+
+
+#d
+moran.mc(net.sp$d, netnblist, nsim = 999)
+moran.mc(net.sp$d, netnblist, nsim = 999)

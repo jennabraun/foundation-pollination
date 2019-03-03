@@ -84,7 +84,7 @@ cov.fil <- mutate(cov.fil, con.density = ifelse(Species == "PP", PP,+
                               ifelse(Species == "EL", EL, +
                               ifelse(Species == "SM", SM, +
                               ifelse(Species == "SD", SD, 0)))))))))))
-cov.fil <- mutate(cov.fil, het.density = shrub.density - con.density)
+cov.fil <- mutate(cov.fil, het.density = density - con.density)
 
 
 #density wrangling, without imputation
@@ -129,12 +129,28 @@ write.csv(cov.fil, "Data/Output/visitation_cleaned.csv")
 
 #shrubs only
 shrubs <- filter(cov.fil, Species != "PP" & Species != "HH" & Species != "SC")
-shrubs$N.flowers.scaled <- scale(shrubs$N.flowers)
+shrubs <- mutate(shrubs, het.density = shrub.density - con.density)
 
 #calculate shrub add diversity   
-wide.shrub <- select(shrubs, 11:21)
+wide.shrub <- dplyr::select(shrubs, 13:23)
 S <- specnumber(wide.shrub)
 shrubs <- cbind(shrubs, S)
+
+write.csv(shrubs, "Data/Output/visitation_shrubs.csv")
+#need to recalculate heterospecific density to exclude cactus
+
+#cactus only
+
+cactus <- filter(cov.fil, Species == "PP" | Species == "HH" | Species == "SC")
+cactus <- mutate(cactus, het.density = cactus.density - con.density)
+
+wide.cactus <- select(cactus, 13:23)
+S <- specnumber(wide.cactus)
+cactus <- cbind(cactus, S)
+write.csv(cactus, "Data/Output/visitation_cactus.csv")
+
+
+
 
 
 

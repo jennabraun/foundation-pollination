@@ -1,0 +1,18 @@
+
+<table style="text-align:center"><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td>df</td><td>AIC</td></tr>
+<tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">m1</td><td>7</td><td>1,338.751</td></tr>
+<tr><td style="text-align:left">m1p</td><td>6</td><td>1,515.432</td></tr>
+<tr><td style="text-align:left">m1b1</td><td>7</td><td>1,340.128</td></tr>
+<tr><td style="text-align:left">m2</td><td>7</td><td>1,334.122</td></tr>
+<tr><td style="text-align:left">m2p</td><td>6</td><td>1,505.929</td></tr>
+<tr><td style="text-align:left">m2b1</td><td>7</td><td>1,334.762</td></tr>
+<tr><td style="text-align:left">m3</td><td>6</td><td>1,340.648</td></tr>
+<tr><td style="text-align:left">m4</td><td>7</td><td>1,336.105</td></tr>
+<tr><td style="text-align:left">m5</td><td>8</td><td>1,336.038</td></tr>
+<tr><td style="text-align:left">m6</td><td>7</td><td>1,333.277</td></tr>
+<tr><td style="text-align:left">m7</td><td>10</td><td>1,333.653</td></tr>
+<tr><td style="text-align:left">m8</td><td>10</td><td>1,334.095</td></tr>
+<tr><td style="text-align:left">m9</td><td>8</td><td>1,335.276</td></tr>
+<tr><td style="text-align:left">m10</td><td>7</td><td>1,336.876</td></tr>
+<tr><td style="text-align:left">null</td><td>3</td><td>1,362.205</td></tr>
+<tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr></table>
