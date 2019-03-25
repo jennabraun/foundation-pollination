@@ -36,12 +36,6 @@ visits$WP <- gsub(" ","", visits$WP)
 visits$WP <- gsub('\"',"", visits$WP)
 visits$uniID <- paste(visits$Species, visits$WP)
 
-
-
-counts <- count(visits, ID)
-counts <- count(visits, Species)
-counts <- count(cov, Species)
-
 #collapse visits by rep
 all.ag <- visits %>% group_by(uniID) %>% summarise(Quantity = sum(Quantity))
 str(all.ag)
@@ -88,23 +82,13 @@ cov.fil <- mutate(cov.fil, het.density = density - con.density)
 
 
 #density wrangling, without imputation
-
 density <- read.csv("Data/density_estimates.csv")
 density[is.na(density)] <- 0
 density <- filter(density, Site == "lower")
 dens.ag <- aggregate(.~Date, data = density, sum)
-#dens.ag <- gather(dens.ag, "Shrub", "n", 6:15)
-#day <- dplyr::select(density, Date, Day)
-#day <- distinct(day)
-#dens.ag <- inner_join(dens.ag, day, by = "Date")
-#dens.ag <- mutate(dens.ag, fl.dens = n/Area)
-#ggplot(dens.ag, aes(Day.y, fl.dens)) + geom_smooth(model = lm, aes(fill = Shrub)) 
-#ggplot(dens.ag, aes(Day.y, fl.dens)) + geom_area(aes(fill = Shrub))
-dense <- dens.ag
-#dense <- spread(dens.ag, Shrub, fl.dens)
-#dense <- select(dense, -Day.x:-Day.y)
 
-#dense[2:11][is.na(dense[2:11])] <- 0
+dense <- dens.ag
+
 dense <- mutate(dense, site.density = (LT+AS+EC+SD+SM+SC+PP+HH+EL+BW)/Area)
 dense <- mutate(dense, site.shrub.density = (LT+AS+EC+SM+EL+BW)/Area)
 dense <- mutate(dense, site.cactus.density = (SC+PP+HH)/Area)
@@ -124,6 +108,59 @@ S <- specnumber(wide.all)
 cov.fil <- cbind(cov.fil, S)
 
 sum(cov.fil$Quantity)
+
+#join imputed density values
+imdens <- read.csv("Data/Output/imputedensity.csv")
+imdens <- imdens %>% mutate(imp.den = rowSums(.[7:16]))
+
+#imdens <- select(imdens, Date, imp.den)
+cov.fil <- left_join(cov.fil, imdens, by = "Date")
+
+
+##calculate site-level conspecific density
+
+cov.fil <- mutate(cov.fil, con.site = ifelse(Species == "PP", PP.y,+
+                                                  ifelse(Species == "SC", SC.y,+
+                                                           ifelse(Species == "HH", HH.y,ifelse(Species == "LT",LT.y, +
+                                                                           ifelse(Species == "AS", AS.y, +
+                                                                         ifelse(Species == "EC", EC.y, +
+                                                                                             ifelse(Species == "BW", BW.y, +
+                                                                                                      ifelse(Species == "EL", EL.y, +
+                                                                                                               ifelse(Species == "SM", SM.y, +
+                                                                                                                        ifelse(Species == "SD", SD.y, 0)))))))))))
+cov.fil <- mutate(cov.fil, het.site = imp.den - con.site)
+
+cov.fil <-select(cov.fil, -(33:47))
+
+#cluster the shrub neighbours
+
+clust <- select(cov.fil, uniID, 11:20)
+row.names(clust) <- clust$uniID
+clust <- select(clust, -uniID)
+
+
+#distance clusters
+# I want similarly - to consider join presences. Not joint absences. Makes more sense from a joint attraction perspective + rarer species presence is notable not their absence. 
+clust <- clust[rowSums(clust) != 0,]
+dist <- vegdist(clust, method = "bray")
+cl.bc <- hclust(dist,"complete")
+
+
+cl <- cutree(cl.bc, h = 0.99)
+cl <- as.data.frame(cl)
+
+cl$uniID <- row.names(cl)
+
+#bray-curtis 8 from very top
+cov.fil <- left_join(cov.fil, cl, by = "uniID")
+cov.fil$cl <- as.factor(cov.fil$cl)
+
+
+#Aadd a timing column
+cov.fil <- cov.fil %>% mutate(time = ifelse(day <= 5, "early", 
+                                      ifelse(day > 14, "later", "mid")))
+
+
 write.csv(cov.fil, "Data/Output/visitation_cleaned.csv")
 
 

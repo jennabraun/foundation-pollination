@@ -8,18 +8,14 @@ library(sjPlot)
 library(stargazer)
 
 visits <- read.csv("Data/Output/visitation_cleaned.csv")
-imdens <- read.csv("Data/Output/imputedensity.csv")
+
 shrubs <- read.csv("Data/Output/visitation_shrubs.csv")
 cact <- read.csv("Data/Output/visitation_cactus.csv")
 
-imdens <- mutate(imdens, im.site = rowSums(imdens[7:16]))
 
-#join to visits
-visits <- imdens %>% select(.,Date, im.site) %>% left_join(visits,., by = "Date")
+#shrubs <- imdens %>% select(.,Date, im.site) %>% left_join(shrubs,., by = "Date")
 
-shrubs <- imdens %>% select(.,Date, im.site) %>% left_join(shrubs,., by = "Date")
-
-cact <- imdens %>% select(.,Date, im.site) %>% left_join(cact,., by = "Date")
+#cact <- imdens %>% select(.,Date, im.site) %>% left_join(cact,., by = "Date")
 
 str(visits)
 sum(visits$Quantity)
@@ -36,22 +32,56 @@ ggplot(visits, aes(density, Quantity)) + geom_point(aes(color = Species)) + geom
 
 ggplot(shrubs, aes(density, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(se = FALSE, color = "black") 
 
+
+
+
 #models for all observations
 visits$N.flowers.scaled <- scale(visits$N.flowers)
 
-m1 <- glmmTMB(Quantity ~density * N.flowers.scaled + im.site + (1|Species), family = "nbinom2", data = visits)       
+m1 <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "nbinom2", data = visits)       
 summary(m1)
 
-m1p <- glmmTMB(Quantity ~density * N.flowers.scaled + im.site + (1|Species), family = "poisson", data = visits)       
+m1p <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "poisson", data = visits)       
 summary(m1p)
 
-m1b1 <- glmmTMB(Quantity ~density * N.flowers.scaled + im.site + (1|Species), family = "nbinom1", data = visits)       
+m1b1 <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "nbinom1", data = visits)       
 summary(m1b1)
 
-m2 <- glmmTMB(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), family = "nbinom2", data = visits)       
+m2 <- glmmTMB(Quantity ~ density + N.flowers.scaled + (1|Species), family = "nbinom1", data = visits)       
 summary(m2)
 car::Anova(m2, type = 2)
 
+m3 <- glmmTMB(Quantity ~ density + N.flowers *imp.den+ (1|Species), family = "nbinom2", data = visits)  
+summary(m3)
+car::Anova(m3, type = 3)
+AIC(m2, m3)
+
+m4 <- glmmTMB(Quantity ~ shrub.density + N.flowers *time+ (1|Species), family = "nbinom2", data = visits)
+
+
+m5 <- glmmTMB(Quantity ~ time * N.flowers + con.site + (1|Species), family = "nbinom2", data = visits)
+car::Anova(m5)
+
+
+
+m6 <- glm(Quantity ~ time * Species, family = "quasipoisson", data = visits)
+summary(m6)  
+  
+AIC(m3,m4)
+summary(m4)
+library(jtools)
+interact_plot(m4, pred = "N.flowers", modx = "time")
+interact_plot(m3, pred = "imp.den", modx = "N.flowers.scaled")
+
+
+g1 <- glmmTMB(Quantity ~ time, family = "nbinom2", data = visits)
+summary(g1)
+g2 <- glmmTMB(Quantity ~ time, family = "nbinom1", data = visits)
+summary(g2)
+
+AIC(g1, g2)
+
+x <- cbind(ind_nfl1_sp$`lower level`, ind_nfl2_sp$`lower level`, ind_nfl3_sp$`lower level`)
 m2p <- glmmTMB(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), family = "poisson", data = visits)    
 
 m2b1 <- glmmTMB(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), family = "nbinom1", data = visits)    

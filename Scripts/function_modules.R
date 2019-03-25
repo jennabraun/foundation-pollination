@@ -32,27 +32,23 @@ iwide <- dplyr::select(iwide, -uniID)
 plotweb(iwide,text.rot = 90)
 
 
-indices <- specieslevel(iwide)
-indices <- as.data.frame(indices[2])
-network.indiv <- networklevel(iwide)
-network.indiv <- as.data.frame(network.indiv)
-indices$uniID <- row.names(indices)
-visits2 <- read.csv("Data/Output/visitation_cleaned.csv")
-netvisits <- right_join(indices, visits2, by = "uniID")  
 
 
 #compute modularity of the network
 mod <- computeModules(iwide)
 mod
+
+
+
 summary(mod)
 listModuleInformation(mod)
+
 plotModuleWeb(mod, plotModules=TRUE, rank=FALSE, weighted=TRUE, displayAlabels=TRUE, displayBlabels=TRUE, labsize=1, xlabel="", ylabel="", square.border= "white",fromDepth=0, upToDepth=-1)
 printoutModuleInformation(mod)
 
-null.t.test(iwide)
+m <- mod@modules
 
 nmod <- nullmodel(iwide, N = 1000)
-
 null.module.dist <- lapply(nmod, computeModules)
 
 net.zscore = function(obsval, nullval) {
@@ -65,17 +61,6 @@ null.list <- lapply(null.module.dist, `[`, 'likelihood')
   null.module.dist@likelihood                 
   lapply(null.module.dist, function (x) x[c('likelihood')])
 
-null.mod.lik <- data.frame()  
-for (i in 1:length(null.module.dist)){
-  a <- null.module.dist[[i]]@likelihood
-  null.mod.lik <- rbind(null.mod.lik, a)
-}
-
-(0.59 - mean(null.mod.lik$X0.375785231570464))/sd(null.mod.lik$X0.375785231570464)  
-
-m <- mod@modules
-m <- as.data.frame(m)
-
 
 library(rnetcarto)
 net <- as.matrix(iwide)
@@ -83,37 +68,33 @@ ms <- netcarto(net, bipartite = TRUE)
 ms.data <- ms[[1]]
 shapiro.test(ms.data$connectivity)
 ms.data$uniID <- ms.data$name
+visits2 <- read.csv("Data/Output/visitation_cleaned.csv")
 netvisits <- right_join(ms.data, visits2, by = "uniID")
+netvisits$module <-as.factor(netvisits$module)
 
-str(all.net)
-all.net$module <- as.factor(all.net$module)
-all.net <- filter(netvisits, Quantity > 0)
-m1 <- glmmTMB(Quantity ~ module +  (1 | Species), family = nbinom2, data = all.net)
-summary(m1)
-m2 <- glmmTMB(Quantity ~ module +  (1 | Species), family = poisson, data = all.net)
-summary(m2)
-AIC(m1, m2)
+a1 <- aov(netvisits$Height ~ netvisits$module)
+summary(a1)
+TukeyHSD(a1)
 
-
-
+ggplot(netvisits, aes(module, N.flowers)) + geom_boxplot()
+ggplot(netvisits, aes(module, con.density)) + geom_boxplot()
 
 ranef(m1)
 library(lsmeans)
 library(emmeans)
-lsmeans(m1, pairwise~module)
+lsmeans(a1, pairwise~netvisits$module)
 em <- emmeans(m1, "module")
 pairs(em)
 m2 <- glm(N.flowers ~ module + Height + Species, family = quasipoisson(), data = all.net)
 summary(m2)
 
 library(nnet)
-m3 <- multinom(module ~ N.flowers + Species + shrub.density, all.net)
+m3 <- multinom(role ~ Species + imp.den, netvisits)
 summary(m3)
-z <- summary(m3)$coefficients/summary(m3)$standard.errors
-# 2-tailed Wald z tests to test significance of coefficients
-p <- (1 - pnorm(abs(z), 0, 1)) * 2
-p
-car::Anova(m3, type = 2)
+car::Anova(m3, type = 3)
+
+ggplot(netvisits, aes(Species, participation)) + geom_boxplot()
+ggplot(netvisits, aes(Species, connectivity)) + geom_boxplot()
 
 m4<- glm(connectivity ~ shrub.density, family = gaussian(), data = all.net)
 summary(m4)
