@@ -38,50 +38,63 @@ ggplot(shrubs, aes(density, Quantity)) + geom_point(aes(color = Species)) + geom
 #models for all observations
 visits$N.flowers.scaled <- scale(visits$N.flowers)
 
-m1 <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "nbinom2", data = visits)       
+m1 <- glmmTMB(Quantity ~density * N.flowers + imp.den + (1|Species), family = "nbinom2", data = visits)       
 summary(m1)
-
-m1p <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "poisson", data = visits)       
+m1p <- glmmTMB(Quantity ~density * N.flowers + imp.den + (1|Species), family = "poisson", data = visits)       
 summary(m1p)
-
-m1b1 <- glmmTMB(Quantity ~density * N.flowers.scaled + imp.den + (1|Species), family = "nbinom1", data = visits)       
+m1b1 <- glmmTMB(Quantity ~density * N.flowers+ imp.den + (1|Species), family = "nbinom1", data = visits)       
 summary(m1b1)
 
-m2 <- glmmTMB(Quantity ~ density + N.flowers.scaled + (1|Species), family = "nbinom1", data = visits)       
+m1 <-glmmTMB(Quantity ~density * N.flowers + time + (1|Species), family = "nbinom2", data = visits)
+
+
+m2 <- glmmTMB(Quantity ~ density + N.flowers + time + (1|Species), family = "nbinom2", data = visits)       
 summary(m2)
 car::Anova(m2, type = 2)
 
-m3 <- glmmTMB(Quantity ~ density + N.flowers *imp.den+ (1|Species), family = "nbinom2", data = visits)  
+m5 <- glmmTMB(Quantity ~ shrub.density + N.flowers + time + (1|Species), family = "nbinom2", data = visits) 
+
+m3 <- glmmTMB(Quantity ~ density + N.flowers *time+ (1|Species), family = "nbinom2", data = visits)  
 summary(m3)
 car::Anova(m3, type = 3)
-AIC(m2, m3)
 
 m4 <- glmmTMB(Quantity ~ shrub.density + N.flowers *time+ (1|Species), family = "nbinom2", data = visits)
+summary(m4)
+car::Anova(m4, type = 3)
 
+interact_plot(m4, )
 
-m5 <- glmmTMB(Quantity ~ time * N.flowers + con.site + (1|Species), family = "nbinom2", data = visits)
-car::Anova(m5)
+m6 <- glmmTMB(Quantity ~ time * N.flowers * shrub.density + (1|Species), family = "nbinom2", data = visits)
 
+m7 <- glmmTMB(Quantity ~ time * N.flowers + S + (1|Species), family = "nbinom2", data = visits)
 
+mnull <- glmmTMB(Quantity ~ (1|Species), family = "nbinom2", data = visits)
 
-m6 <- glm(Quantity ~ time * Species, family = "quasipoisson", data = visits)
+AIC(m1, m2, m3, m5, m4, m6, m7, mnull)
+
 summary(m6)  
-  
 AIC(m3,m4)
 summary(m4)
 library(jtools)
 interact_plot(m4, pred = "N.flowers", modx = "time")
 interact_plot(m3, pred = "imp.den", modx = "N.flowers.scaled")
 
+library(lsmeans)
+source(system.file("other_methods","lsmeans_methods.R",package="glmmTMB"))
+visits$time <- relevel(visits$time, "later", "mid", "early")
 
 g1 <- glmmTMB(Quantity ~ time, family = "nbinom2", data = visits)
 summary(g1)
+car::Anova(g1, type = 2)
+lsmeans(g1, pairwise ~ time)
 g2 <- glmmTMB(Quantity ~ time, family = "nbinom1", data = visits)
 summary(g2)
+g3 <- glmmTMB(Quantity ~ time, family = "poisson", data = visits )
+AIC(g1, g2, g3)
 
-AIC(g1, g2)
 
-x <- cbind(ind_nfl1_sp$`lower level`, ind_nfl2_sp$`lower level`, ind_nfl3_sp$`lower level`)
+
+
 m2p <- glmmTMB(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), family = "poisson", data = visits)    
 
 m2b1 <- glmmTMB(Quantity ~ density + N.flowers.scaled * im.site+ (1|Species), family = "nbinom1", data = visits)    

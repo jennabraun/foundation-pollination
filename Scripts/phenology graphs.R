@@ -43,107 +43,50 @@ ggplot(shrub, aes(day, y = density))  + stat_smooth(geom = 'area', aes(fill = sh
 ggplot(imdens, aes(day, density)) + geom_bar(stat = "identity")
 
 ggplot(daily, aes(day, sum)) + geom_smooth()
+
 daily <- imdens %>% group_by(day) %>% summarise(sum = sum(density))
 
 mean(daily$sum)
 range(daily$sum)
 sd(daily$sum)
 
-high <- filter(daily, sum > 0.038)
-low <- filter(daily, sum < 0.02788)
-#try size lowest, six middle and six highest?
 
-range(daily$sum)
-one <- filter(daily, sum <0.0297)
-two <- filter(daily, sum>0.03896)
-visits %>% count(Date)
-visits %>% group_by(Date) %>% as.numeric(cut_number(imp.den,3))
+daily <- daily %>% mutate(time = ifelse(day <= 5, "early", 
+                                            ifelse(day > 14, "later", "mid")))
 
-visits$dense.id <- as.numeric(cut_number(visits$imp.den,3))
-summary(daily$sum)
+daily <- filter(daily, day != 20)
 
-visits$quart <- as.numeric(quarte)
-one <- filter(data, imp.den < 0.030984)
-three <- filter(data, imp.den > 0.038500)
-
-data <- read.csv("Data/Output/visitation_cleaned.csv")
-
-
-three %>% group_by(Date) %>% count()
-
-quantile(daily$sum, prob = c(0.333, 0.666))
-
-
-ggplot(data, aes(day, Quantity)) + geom_point(position = "jitter") + geom_smooth()
-
-ggplot(daily, aes(day, sum)) + geom_bar(stat = "identity")
-
-v <- data %>% group_by(day) %>% summarise(mean = mean(Quantity))
-
-ggplot(v, aes(day, mean)) + geom_bar(stat = "identity")
-daily <-filter(daily, day != 12)
-
-str(early)
-early <- daily %>% filter(day <= 5)
-m1 <- lm(sum ~ day, data = early)
-summary(m1)
-mid <- daily %>% filter(day >=6 & day<= 14)
-m2 <- lm(sum ~ day, data = mid)
-summary(m2)
-later <- daily %>% filter(day > 14)
-m3 <- lm(sum ~ day, data = later)
-summary(m3)
-one <- filter(data, imp.den < 0.0300)
-
-
-
+shapiro.test(daily$sum)
 
 a1 <- aov(daily$sum ~ daily$time)
 summary(a1)
 TukeyHSD(a1)
+daily$time <- as.factor(daily$time)
+
+library(multcomp)
+
+m1 <- glm(sum ~ time, family = "gaussian", data = daily)
+shapiro.test(resid(m1))
+summary(m1)
+car::Anova(m1, type = 2)
+
+daily$time <- relevel(daily$time, "later", "mid", "early")
+
+l1 <- lm(daily$sum ~ daily$time)
+summary(l1)
+car::Anova(l1, type = 2)
+
+summary(glht(m1, mcp(time = "Tukey")))
 
 ggplot(daily, aes(time, sum)) + geom_boxplot()
 ggplot(data, aes(time, Quantity)) + geom_boxplot()
 
-m1 <- glm(Quantity ~ time * N.flowers, family="quasipoisson", data = data)
-library(glmmTMB)
-m2 <- glmmTMB(N.flowers ~ time  +(1|Species), family = "poisson", data = data)
 
-m3 <- glmmTMB(N.flowers * time  + shrub.density + (1|Species), family = "nbinom2", data = data)
-AIC(m2, m3)
-
-summary(m2)
-car::Anova(m2, type = 3)
-
-library(jtools)
-interact_plot(m2, pred = "density", modx = "time")
+ggplot(daily, aes(day, sum)) + geom_line() + ylab("Site level density, shrubs/m") + xlab("Study Day")
 
 
-ggplot(data, aes(time, N.flowers)) + geom_boxplot()
+m <- visits %>% group_by(day) %>% summarise(mean = mean(Quantity))
 
-
-summary(data$imp.den)
-visits %>% group_by(dense.id) %>% summarise(mean = mean(imp.den))
-visits$dense.id <- as.factor(visits$dense.id)
-a1 <- aov(visits$imp.den ~ visits$dense.id)
-summary(a1)
-TukeyHSD(a1)
-
-ggplot(one, aes(day, sum)) + geom_smooth(method = "lm")
-shapiro.test(one$sum)
-ggplot(two, aes(day, sum)) + geom_smooth(method = "lm")
-shapiro.test(two$sum)
-thr <- filter(daily, day >14)
-
-
-mean(one$sum)
-mean(two$sum)
-mean(thr$sum)
-
-l1 <- lm(sum ~ day, data = thr)
-summary(l1)  
-  
-m1 <- lm(sum ~ (day^2), data = daily)
-summary(m1)
+ggplot(m, aes(day, mean)) + geom_line() + ylab("Mean visits per plant") + xlab("Study day")
 
 cor.test(data$density, data$site.density)

@@ -5,6 +5,7 @@ library(bipartite)
 library(purrr)
 library(tidyr)
 library(ggplot2)
+library(glmmTMB)
 
 #it makes sense to only cluster traits that were chosen?
 data <- read.csv("Data/Output/visitation_cleaned.csv")
@@ -36,6 +37,9 @@ sum(visits$Quantity)
 visits$uniID <- paste(visits$Species, visits$WP)
 visits <- right_join(cl.con, visits, by = "uniID")
 visits <- right_join(time, visits, by = "uniID")
+
+#are flower # and heightcorrelated?
+cor.test(visits$Height, visits$N.flowers)
 
 
 #functions
@@ -399,6 +403,56 @@ pol <- as.data.frame(pol)
 plant <- as.data.frame(plant)
 dfun(sp3)
 
+
+pol1 <- ind_sp1_sp[[1]]
+pol2 <- ind_sp2_sp[[1]]
+pol3 <- ind_sp3_sp[[1]]
+
+plant1 <- ind_sp1_sp[[2]]
+plant2 <- ind_sp2_sp[[2]]
+plant3 <- ind_sp3_sp[[2]]
+
+mean(pol1$d)
+mean(pol2$d)
+mean(pol3$d)
+
+mean(plant1$partner.diversity)
+mean(plant2$partner.diversity)
+mean(plant3$partner.diversity)
+
+mean(plant1$d)
+mean(plant2$d)
+mean(plant3$d)
+
+ind_ind1_sp <- specieslevel(ind1)
+ind_ind2_sp <- specieslevel(ind2)
+ind_ind3_sp <- specieslevel(ind3)
+
+pol_ind1 <- ind_ind1_sp[[1]]
+pol_ind2 <- ind_ind2_sp[[1]]
+pol_ind3 <- ind_ind3_sp[[1]]
+
+plant_ind1 <- ind_ind1_sp[[2]]
+plant_ind2 <- ind_ind2_sp[[2]]
+plant_ind3 <- ind_ind3_sp[[2]]
+
+mean(pol_ind1$d)
+mean(pol_ind2$d)
+mean(pol_ind3$d)
+
+mean(plant_ind1$d)
+mean(plant_ind2$d)
+mean(plant_ind3$d)
+
+plant_nfl1 <- ind_nfl1_sp[[2]]
+plant_nfl2 <- ind_nfl2_sp[[2]]
+plant_nfl3 <- ind_nfl3_sp[[2]]
+
+mean(plant_nfl1$d)
+mean(plant_nfl2$d)
+mean(plant_nfl3$d)
+
+
 ##try to compare networks
 library(igraph)
 library(betalink)
@@ -414,8 +468,11 @@ b3 <- betalink(g2, g3, bf = B01)
 
 network_betaplot(g, g2)
 beta_os_prime(g, g2, g3, bf = B01)
+b <- as.data.frame(b)
+b2 <- as.data.frame(b2)
+b3 <- as.data.frame(b3)
 
-
+beta <- rbind(b, b2, b3)
 
 library(igraph)
 
@@ -430,6 +487,10 @@ library(rnetcarto)
 n3 <- netcarto(one3)
 n2 <- netcarto(one2)
 n1 <- netcarto(one1)
+
+
+
+
 
 n1data <- n1[[1]]
 n2data <- n2[[1]]
@@ -446,30 +507,77 @@ n3data <- rename(n3data, uniID = name)
 n3data <- left_join(n3data, data, by = "uniID")
 
 
+#null network comparisons
+null1 <- permatfull(one1, fixedmar = "both", times = 1000)
+null1 <- null1$perm
+null1 <- map(null1, as.matrix)
+ran_mod1_carto <- map(null1, netcarto)
+
+null2 <- permatfull(one2, fixedmar = "both", times = 1000)
+null2 <- null2$perm
+null2 <- map(null2, as.matrix)
+ran_mod2_carto <- map(null2, netcarto)
+
+null3 <- permatfull(one3, fixedmar = "both", times = 1000)
+null3 <- null3$perm
+null3 <- map(null3, as.matrix)
+ran_mod3_carto <- map(null3, netcarto)
+
+car1 <- do.call(rbind, lapply(ran_mod1_carto, `[[`, 2))
+car1 <- as.data.frame(car1)
+car2 <- do.call(rbind, lapply(ran_mod2_carto, `[[`, 2))
+car2 <- as.data.frame(car2)
+car3 <- do.call(rbind, lapply(ran_mod3_carto, `[[`, 2))
+car3 <- as.data.frame(car3)
+
+
+net.zscore(n1[[2]], car1$V1)
+net.zscore(n2[[2]], car2$V1)
+net.zscore(n3[[2]], car3$V1)
+
+
+
 library(nnet)
-m1 <- multinom(module ~ Species + Height, data = n1data)
+m1 <- multinom(module ~ Species + N.flowers + shrub.density, data = n1data)
 summary(m1)
 car::Anova(m1)
 
-m2 <- multinom(module ~ Species + Height, data = n2data)
+m2 <- multinom(module ~ Species + N.flowers + shrub.density, data = n2data)
 summary(m2)
 car::Anova(m2)
 
-m3 <- multinom(module ~ Species + Height, data = n3data)
+m3 <- multinom(module ~ Species + N.flowers + shrub.density, data = n3data)
 summary(m3)
 car::Anova(m3)
 
-m4 <- multinom(module ~ Species, data = n3data)
-AIC(m3, m4)
-str(n3data)
+
 
 shapiro.test(n1data$connectivity)
 shapiro.test(n2data$connectivity)
 shapiro.test(n3data$connectivity)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#modelling for individual centrality
+
 one1 <- graph_from_adjacency_matrix(one1)
-#need to remove SM50 because it is disconnect
 cls1 <- closeness(one1)
 ei1 <- eigen_centrality(one1)
 bt1 <- betweenness(one1)
@@ -500,32 +608,120 @@ dat1 <- left_join(d, data, by = "uniID")
 dat1$V2 <- as.numeric(dat1$V2)
 shapiro.test(dat1$dg1)
 
-library(glmmTMB)
+#degree
+dat1$time <- relevel(dat1$time, "later", "mid", "early")
+
 m1 <- glmmTMB(dg1 ~ N.flowers+ (1|Species), family = "nbinom2", data = dat1)
 summary(m1)
+car::Anova(m1, type = 3)
 
-m2 <- glmmTMB(V2 ~  N.flowers*time + (1|Species), family = "gaussian", data = dat1)
+m2 <- glmmTMB(dg1 ~ N.flowers*time+ shrub.density +(1|Species), family = "nbinom2", data = dat1)
 summary(m2)
+car::Anova(m2, type = 3)
+
+
+library(jtools)
+interact_plot(m2, N.flowers, time)
+
+m4 <- glmmTMB(dg1 ~ time+ (1|Species), family = "nbinom2", data = dat1)
+summary(m4)
+car::Anova(m4, type = 2)
+
+
+m3 <- glmmTMB(dg1 ~ N.flowers+time+ (1|Species), family = "nbinom2", data = dat1)
+summary(m3)
+
+m4 <- glmmTMB(dg1 ~ time+ (1|Species), family = "nbinom2", data = dat1)
+summary(m4)
+mnull <- glmmTMB(dg1 ~ (1|Species), family = "nbinom2", data = dat1)
+summary(mnull)
+
+AIC(m1, m2, m3, m4)
+
+anova(mnull, m1, m2, m4)
+
+library(jtools)
+interact_plot(m2, N.flowers, time)
+
+
+m2.1 <- glmmTMB(dg1 ~ N.flowers*time+ (1|Species), family = "nbinom1", data = dat1)
+summary(m2.1)
+
+m2.p <- glmmTMB(dg1 ~ N.flowers*time+ (1|Species), family = "poisson", data = dat1)
+summary(m2.p)
+
+mnull <- glmmTMB(dg1 ~ (1|Species), family = "nbinom2", data = dat1)
+summary(mnull)
+
+AIC(m1, m2, m3, m2.1, m2.p, mnull)
+anova(m2, mnull)
+anova(m1, m2)
+#m2 is an improvement over intercept but not huge. 
+
+plot(resid(m2))
+
+ggplot(dat1, aes(dg1)) + geom_density()
+
+library(lsmeans)
+library(jtools)
+
+##eigancentrality
+m1 <- glmmTMB(V2 ~  N.flowers + (1|Species), family = "gaussian", data = dat1)
+summary(m1)
+
+m2 <- glmmTMB(V2 ~  N.flowers*time  + (1|Species), family = "gaussian", data = dat1)
+summary(m2)
+car::Anova(m2, type = 3)
+
+interact_plot(m2, pred = "N.flowers", modx = "time")
+
+
+
+m3 <- glmmTMB(V2 ~  N.flowers+time + (1|Species), family = "gaussian", data = dat1)
+summary(m3)
+
+m4 <- glmmTMB(V2 ~  time + (1|Species), family = "gaussian", data = dat1)
+summary(m4)
+m5 <- glmmTMB(V2 ~  N.flowers+time * shrub.density+ (1|Species), family = "gaussian", data = dat1)
+summary(m5)
+car::Anova(m5, type = 3)
+
+mnull <- glmmTMB(V2 ~  (1|Species), family = "gaussian", data = dat1) 
+summary(mnull)
+
+AIC(m1, m2, m3, m4, mnull)
+
 shapiro.test(resid(m2))
 interact_plot(m2, pred = "N.flowers", modx = "time")
 
-library(jtools)
 
-plot(one1)
+dat1 <- mutate(dat1, btbin = ifelse(bt1 == 0, 0, 1))
+dat_bt <- filter(dat1, bt1 > 0)
+ggplot(dat_bt, aes(bt1)) + geom_density()
+shapiro.test(dat_bt$bt1)
 
-ggplot(dat1, aes(bt1sq)) + geom_density()
+b1 <- glmmTMB(btbin ~ N.flowers + shrub.density + time + Quantity + (1|Species), family = "binomial", data = dat1)
+summary(b1)
 
-dat1 <- mutate(dat1, bt1sq = log(bt1 + 5))
-str(dat1)
-m3 <- glmmTMB(bt1sq ~density+ (1|Species), family = "gaussian", data = dat1)
+b2 <- glmmTMB(btbin ~ N.flowers + time * shrub.density  + Quantity + (1|Species), family = "binomial", data = dat1)
+summary(b2)
 
-shapiro.test(resid(m3))
-summary(m3)
-interact_plot(m3, pred = "N.flowers", modx = "time")
+b3 <- glmmTMB(btbin ~ N.flowers * time + shrub.density  + Quantity +  (1|Species), family = "binomial", data = dat1)
+
+AIC(b1, b2, b3)
+
+anova(b1, b2)
+#still looks good even when number of visits is included
+interact_plot(b2, shrub.density, time)
 
 
-AIC(m1, m2)
-plot
+summary(b2)
 
-#for closeness remove SM50 because it's disconnected
-dat <- dat1[-68,]
+b2 <- glmmTMB(bt1log ~ N.flowers + shrub.density  + (1|Species), family = "gaussian", data = dat_bt)
+shapiro.test(resid(b2))
+plot(resid(b2))
+summary(b2)
+library(bipartite)
+plotweb(nfl1)
+plotweb(nfl2)
+plotweb(nfl3)
