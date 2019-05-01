@@ -556,6 +556,19 @@ shapiro.test(n1data$connectivity)
 shapiro.test(n2data$connectivity)
 shapiro.test(n3data$connectivity)
 
+mods <- rbind(n1data, n2data, n3data)
+shapiro.test(mods$connectivity)
+
+l1 <- lm(connectivity ~ N.flowers +time + Quantity + shrub.density + Species, data = mods)
+
+l2 <- lm(participation ~ shrub.density+ Quantity, data = mods)
+summary(l2)
+
+a1 <- aov(Quantity ~ module, data = n3data)
+summary(a1)
+shapiro.test(mods$participation)
+summary(l1)
+anova(l1)
 
 
 
@@ -567,13 +580,7 @@ shapiro.test(n3data$connectivity)
 
 
 
-
-
-
-
-
-
-
+library(igraph)
 
 #modelling for individual centrality
 
@@ -602,7 +609,7 @@ dat3 <- as.data.frame(cbind(cls1, ei1$vector, bt1, dg1))
 
 d <- rbind(dat1, dat2, dat3)
 
-
+library(glmmTMB)
 d$uniID <- row.names(d)
 dat1 <- left_join(d, data, by = "uniID")
 dat1$V2 <- as.numeric(dat1$V2)
@@ -611,14 +618,20 @@ shapiro.test(dat1$dg1)
 #degree
 dat1$time <- relevel(dat1$time, "later", "mid", "early")
 
-m1 <- glmmTMB(dg1 ~ N.flowers+ (1|Species), family = "nbinom2", data = dat1)
+m1 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "nbinom2", data = dat1)
 summary(m1)
 car::Anova(m1, type = 3)
 
-m2 <- glmmTMB(dg1 ~ N.flowers*time+ shrub.density +(1|Species), family = "nbinom2", data = dat1)
+m2 <- glmmTMB(dg1 ~ N.flowers*time+ shrub.density + Quantity+ (1|Species), family = "nbinom2", data = dat1)
 summary(m2)
 car::Anova(m2, type = 3)
 
+
+m3 <- glm(dg1 ~ N.flowers*time+ shrub.density + Quantity, family = "quasipoisson", data = dat1)
+vif
+car::vif(m3)
+
+cor.test(dat1$dg1, dat1$Quantity)
 
 library(jtools)
 interact_plot(m2, N.flowers, time)
@@ -644,14 +657,28 @@ library(jtools)
 interact_plot(m2, N.flowers, time)
 
 
-m2.1 <- glmmTMB(dg1 ~ N.flowers*time+ (1|Species), family = "nbinom1", data = dat1)
+m2.1 <- glmmTMB(dg1 ~ N.flowers*time+ Quantity + (1|Species), family = "nbinom2", data = dat1)
 summary(m2.1)
-
+car::Anova(m2.1, type = 3)
+library(lme4)
+m <- glmer.nb(dg1 ~ N.flowers*time+ Quantity + (1|Species), data = dat1)
+car::vif(m)
 m2.p <- glmmTMB(dg1 ~ N.flowers*time+ (1|Species), family = "poisson", data = dat1)
 summary(m2.p)
 
 mnull <- glmmTMB(dg1 ~ (1|Species), family = "nbinom2", data = dat1)
 summary(mnull)
+
+g1 <- MASS::glm.nb(dg1 ~ N.flowers*time+ Quantity + Species, data = dat1)
+summary(g1)
+VIF(g1)
+car::vif(g1)
+cor(model.matrix(g1)[,-1])
+
+
+library(mctest)
+
+AIC(m2.1, mnull)
 
 AIC(m1, m2, m3, m2.1, m2.p, mnull)
 anova(m2, mnull)
@@ -669,9 +696,23 @@ library(jtools)
 m1 <- glmmTMB(V2 ~  N.flowers + (1|Species), family = "gaussian", data = dat1)
 summary(m1)
 
-m2 <- glmmTMB(V2 ~  N.flowers*time  + (1|Species), family = "gaussian", data = dat1)
+m2 <- glmmTMB(V2 ~  N.flowers+time  * Quantity +  (1|Species), family = "gaussian", data = dat1)
 summary(m2)
 car::Anova(m2, type = 3)
+
+
+m3 <- glmmTMB(V2 ~  N.flowers*time  + Quantity +  (1|Species), family = "gaussian", data = dat1)
+summary(m3)
+car::Anova(m3, type = 3)
+shapiro.test(resid(m3))
+
+m4 <- glmmTMB(Quantity ~  N.flowers + time  + V2 +  (1|Species), family = "nbinom2", data = dat1)
+summary(m4)
+
+AIC(m2, m3)
+
+
+mns <- data
 
 interact_plot(m2, pred = "N.flowers", modx = "time")
 
@@ -706,15 +747,24 @@ summary(b1)
 b2 <- glmmTMB(btbin ~ N.flowers + time * shrub.density  + Quantity + (1|Species), family = "binomial", data = dat1)
 summary(b2)
 
-b3 <- glmmTMB(btbin ~ N.flowers * time + shrub.density  + Quantity +  (1|Species), family = "binomial", data = dat1)
+b3 <- glmmTMB(btbin ~  imp.den + density  + Quantity +  (1|Species), family = "binomial", data = dat1)
 
+summary(b3)
 AIC(b1, b2, b3)
+
+test <- glmmTMB(Quantity ~ density+time + (1|Species), family = "nbinom2", data = dat1)
+summary(test)
+
+cor.test(dat1$shrub.density, dat1$Quantity)
+
+test1 <- glmmTMB(Quantity ~ shrub.density + (1|Species), family = "nbinom2", data = visits)
+summary(test1)
 
 anova(b1, b2)
 #still looks good even when number of visits is included
-interact_plot(b2, shrub.density, time)
+interact_plot(test, shrub.density, time)
 
-
+library(jtools)
 summary(b2)
 
 b2 <- glmmTMB(bt1log ~ N.flowers + shrub.density  + (1|Species), family = "gaussian", data = dat_bt)
@@ -725,3 +775,30 @@ library(bipartite)
 plotweb(nfl1)
 plotweb(nfl2)
 plotweb(nfl3)
+
+
+datcov <- cov(dat1)
+
+library(lavaan)
+Y <- dat1$V2
+X <- dat1$N.flowers
+M <- dat1$Quantity
+dat3$uniID <- row.names(dat3)
+dat3 <- left_join(dat3, visits, by = "uniID")
+data <- data.frame(Y = mods$connectivity, X = mods$N.flowers, M = mods$Quantity)
+model <- ' # direct effect
+Y ~ c*X
+# mediator
+M ~ a*X
+Y ~ b*M
+# indirect effect (a*b)
+ab := a*b
+# total effect
+total := c + (a*b) 
+   '
+fit <- sem(model, data = data)
+summary(fit)
+
+shapiro.test(mods$connectivity)
+t <- lm(connectivity ~ N.flowers + shrub.density+ Quantity* time, data = mods)
+summary(t)

@@ -49,10 +49,10 @@ daily <- imdens %>% group_by(day) %>% summarise(sum = sum(density))
 mean(daily$sum)
 range(daily$sum)
 sd(daily$sum)
+cor.test(daily$day, daily$sum)
 
-
-daily <- daily %>% mutate(time = ifelse(day <= 5, "early", 
-                                            ifelse(day > 14, "later", "mid")))
+daily <- daily %>% mutate(time = ifelse(day <= 9, "early", 
+                                            ifelse(day > 9, "later", "mid")))
 
 daily <- filter(daily, day != 20)
 
@@ -65,6 +65,8 @@ daily$time <- as.factor(daily$time)
 
 library(multcomp)
 
+l1 <- lm(sum ~ time, data = daily)
+anova(l1)
 m1 <- glm(sum ~ time, family = "gaussian", data = daily)
 shapiro.test(resid(m1))
 summary(m1)
@@ -89,4 +91,4 @@ m <- visits %>% group_by(day) %>% summarise(mean = mean(Quantity))
 
 ggplot(m, aes(day, mean)) + geom_line() + ylab("Mean visits per plant") + xlab("Study day")
 
-cor.test(data$density, data$site.density)
+cor.test(daily$day, daily$sum)

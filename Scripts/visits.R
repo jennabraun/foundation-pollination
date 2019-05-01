@@ -90,6 +90,9 @@ dens.ag <- aggregate(.~Date, data = density, sum)
 dense <- dens.ag
 
 dense <- mutate(dense, site.density = (LT+AS+EC+SD+SM+SC+PP+HH+EL+BW)/Area)
+
+
+ggplot(dense, aes(Day, site.density)) + geom_bar(stat = "identity")
 dense <- mutate(dense, site.shrub.density = (LT+AS+EC+SM+EL+BW)/Area)
 dense <- mutate(dense, site.cactus.density = (SC+PP+HH)/Area)
 

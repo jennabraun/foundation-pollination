@@ -58,11 +58,24 @@ m3 <- glmmTMB(Quantity ~ density + N.flowers *time+ (1|Species), family = "nbino
 summary(m3)
 car::Anova(m3, type = 3)
 
-m4 <- glmmTMB(Quantity ~ shrub.density + N.flowers *time+ (1|Species), family = "nbinom2", data = visits)
+m4 <- glmmTMB(Quantity ~ shrub.density + N.flowers *day+ (1|Species), family = "nbinom2", data = visits)
 summary(m4)
 car::Anova(m4, type = 3)
+anova(m4, mnull)
 
-interact_plot(m4, )
+m5 <- glmmTMB(Quantity ~ shrub.density + N.flowers +imp.den+ day+ (1|Species), family = "nbinom2", data = visits)
+summary(m5)
+
+l1 <- lm(Quantity ~ shrub.density + N.flowers +imp.den+ day, data = visits)
+car::vif(l1)
+cor.test(visits$Quantity, visits$day)
+ggplot(visits, aes(day, imp.den)) + geom_point()
+
+mnull <-glmmTMB(Quantity ~  (1|Species), family = "nbinom2", data = visits)
+AIC(m4,m5, mnull)
+
+library(jtools)
+interact_plot(m4, pred = "N.flowers", modx = "day")
 
 m6 <- glmmTMB(Quantity ~ time * N.flowers * shrub.density + (1|Species), family = "nbinom2", data = visits)
 
@@ -235,3 +248,9 @@ stargazer(a6, type = "html", summary = FALSE, out= "Data/Tables/visitGLMM_Chisq_
 stargazer(a2, type = "html", summary = FALSE, out= "Data/Tables/visitGLMM_Chisq_shrubs.doc")
 stargazer(a3, type = "html", summary = FALSE, out= "Data/Tables/visitGLMM_Chisq_cactus.doc")
 
+
+#a few summary stats
+summary <- visits %>% group_by(Species) %>% summarise(mn.Height = mean(Height), n.fl = mean(N.flowers), Q = mean(Quantity))
+visits %>% group_by(Species) %>% count(Species)
+
+ggplot(visits, aes(imp.den, Quantity)) + geom_smooth()
