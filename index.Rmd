@@ -5,7 +5,6 @@ output:
     toc: true
     toc_float: true
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
@@ -20,10 +19,13 @@ library(rnetcarto)
 library(sjstats)
 library(knitr)
 library(sjPlot)
+library(corrplot)
+library(purrr)
 ```
 
-#Desert shrub facilitation shapes pollination network topology
+# Desert shrub facilitation shapes pollination network topology
 \newline
+
 ***
 \newline
 ```{r, loading clean datasets}
@@ -49,7 +51,7 @@ visits$uniID <- paste(visits$Species, visits$WP)
 #visits <- right_join(cl.con, visits, by = "uniID")
 #visits <- right_join(time, visits, by = "uniID")
 ```
-
+# Functions
 ```{r, functions}
 
 #this function creates an adjencancy matrix from the long visit only dataset
@@ -196,7 +198,7 @@ all <- left_join(all, n1data, by = "uniID")
 all$module <- as.factor(all$module)
 ```
 
-#EDA
+# EDA
 ```{r}
 ggplot(data, aes(N.flowers, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") 
 
@@ -208,9 +210,14 @@ pl <- gather(pl,type, prop, 4:5)
 ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality") + ylab("Proportion of Population")
 
 ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population")
+
+c <- select(all, 3:6, Quantity)
+c <- rename(c, closeness = cls1, eigancentrality = V2, betweenness = bt1, degree = dg1, visitation.rate = Quantity)
+M <- cor(c)
+corrplot(M, method = "number") # Display the correlation coefficient
 ```
 
-#Modelling
+# Modelling
 
 ```{r, visitation rates}
 m1 <- glmmTMB(Quantity ~density + N.flowers + imp.den + (1|Species), family = "nbinom2", data = data)       
@@ -244,7 +251,7 @@ interact_plot(m6, pred = "N.flowers", modx = "day")
 ```
 
 
-{r, centrality measures}
+```{r, centrality measures}
 #degree centrality
 
 ggplot(all, aes(dg1)) + geom_density()
@@ -257,7 +264,9 @@ AIC(m2, m3, m4)
 m5 <- glmmTMB(dg1 ~ N.flowers +(1|Species), family = "nbinom2", data = all)
 summary(m5)
 m6 <- glmmTMB(dg1 ~ Quantity+(1|Species), family = "nbinom2", data = all)
-m7 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day + (1|Species), family = "nbinom2", data = all)
+m7 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  + N.flowers + (1|Species), family = "nbinom2", data = all)
+summary(m7)
+car::Anova(m7, type = 2)
 AIC(m5, m6, m7)
 
 summary(m6)
@@ -271,16 +280,48 @@ ggplot(all, aes(bt1)) + geom_density()
 b1 <- glmmTMB(btbin ~ shrub.density + Quantity + (1|Species), family = "binomial", data = all)
 summary(b1)
 car::Anova(b1, type = 2)
-b1 <- glmmTMB(log(bt1) ~ Quantity +(1|Species), family = "gaussian", data = bt)
-summary(b1)
-car::Anova(b1, type = 2)
-shapiro.test(resid(b1))
+
+b2 <-glmmTMB(btbin ~ shrub.density + Quantity + day + N.flowers + (1|Species), family = "binomial", data = all)
+summary(b2)
+
+
+b3 <- glmmTMB(log(bt1) ~ Quantity +(1|Species), family = "gaussian", data = bt)
+summary(b3)
+car::Anova(b3, type = 2)
+shapiro.test(resid(b3))
+
+b4 <- glmmTMB(log(bt1) ~ Quantity + shrub.density + day + N.flowers + (1|Species), family = "gaussian", data = bt)
+summary(b4)
+car::Anova(b4, type = 2)
 
 #Eigancentrality
+ggplot(all, aes(V2)) + geom_density()
+shapiro.test(log(all$V2))
+
 v1 <- glmmTMB(V2 ~ day + Quantity + (1|Species), family = "gaussian", data = all)
 summary(v1)
 car::Anova(v1, type = 2)
 shapiro.test(resid(v1))
+
+v2 <- glmmTMB(V2 ~ Quantity+ shrub.density + N.flowers + day +(1|Species), family = "gaussian", data = all)
+summary(v2)
+car::Anova(v2, type = 2)
+
+
+
+v3 <- glmmTMB(V2 ~ Quantity + S*N.flowers + (1|Species), family = "gaussian", data = all)
+summary(v3)
+car::Anova(v3, type = 3)
+
+
+v4 <- glmmTMB(V2 ~  Quantity + (1|Species), family = "gaussian", data = all)
+summary(v4)
+AIC(v1, v2, v3, v4)
+
+
+
+interact_plot(v3, S, N.flowers)
+shapiro.test(resid(v4))
 
 vnull <-glmmTMB(V2 ~ (1|Species), family = "gaussian", data = all)
 AIC(v1, vnull)
@@ -288,9 +329,9 @@ anova(v1, vnull)
 
 
 
+```
 
 #maybe just use the number of sampled plants as an offset??
-
 #conspecifics
 all <- mutate(all, uncon = n - cons)
 
@@ -378,31 +419,72 @@ overdisp(m1)
 
 ```
 
+Network comparisons
+
+```{r}
+sp <- net(visits, Species, fun.grp)
+n <- networklevel(sp)
+n <- as.data.frame(n)
+
+i <- as.data.frame(networklevel(ind1))
+sp.m <- computeModules(sp)
+computeModules(ind1)
+
+sp.ran.mod <- ranModules(sp)
+mean(sp.ran.mod$`X[[i]]`)
+net.zscore(sp.m@likelihood, sp.ran.mod$`X[[i]]`)
+ind.ran.mod <- ranModules(ind1)
+
+```
+
 #Modules and modularity modelling
 
-{r, module}
+```{r, module}
 library(nnet)
 m1 <- multinom(module ~ Species + shrub.density +  Quantity + N.flowers*day, data = all)
 summary(m1)
 car::Anova(m1)
-ggplot(n1data, aes(module, N.flowers)) + geom_boxplot()
-
-
-m2 <- multinom(module ~ Species + shrub.density +  Quantity +day, data = all)
+m2 <- multinom(module ~ Species + shrub.density +  Quantity +day + N.flowers, data = all)
 AIC(m1,m2)
 car::Anova(m2)
 summary(m2)
+anova(m1, m2)
+
+#<2 AIC difference, choose simpler
+m3 <- multinom(module ~ Species + shrub.density +  Quantity + day, data = all)
+AIC(m1, m2, m3)
+car::Anova(m3)
+summary(m3)
+
+m4 <- multinom(module ~ 1, data = all)
+AIC(m1, m2, m3, m4)
 
 kruskal.test(module ~ N.flowers, data = all)
 kruskal.test(module ~ shrub.density, data = all)
 kruskal.test(module ~ Quantity, data = all)
 
-shapiro.test(all$connectivity)
-ggplot(all, aes(connectivity)) + geom_density()
 
-m <- lm(participation ~ shrub.density + Species, data = all)
-shapiro.test(resid(m))
-summary(m)
+#make 1000 random networks, project to one-mode, compute modularity
+null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
+null.mod <- null.mod$perm
+null.one <- map(null.mod, as.one.mode, fill = 0, project = "lower", weighted = TRUE)
+null.module <- map(null.one, netcarto)
+
+t <- list()  
+for (i in 1:1000){
+    ind <- null.module[[i]][2]
+    t <- c(t, ind)
+  } 
+t <- unlist(t, use.names=FALSE)
+t <- as.data.frame(t)
+write.csv(t, "randommoduleoutput.csv")
+net.zscore(0.335, t$t)
+
+
+print(null.module[[3]][2])
 
 #violindles
-ggplot(n1data, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species), shape=16, position=position_jitter(0.2))
+ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species), shape=16, position=position_jitter(0.2))
+
+ggplot(n1data, aes(module, N.flowers)) + geom_boxplot()
+```
