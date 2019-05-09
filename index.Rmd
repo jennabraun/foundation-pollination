@@ -265,15 +265,19 @@ m5 <- glmmTMB(dg1 ~ N.flowers +(1|Species), family = "nbinom2", data = all)
 summary(m5)
 m6 <- glmmTMB(dg1 ~ Quantity+(1|Species), family = "nbinom2", data = all)
 m7 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  + N.flowers + (1|Species), family = "nbinom2", data = all)
-summary(m7)
-car::Anova(m7, type = 2)
-AIC(m5, m6, m7)
+summary(m6)
+
+car::Anova(m6, type = 2)
+AIC(m2, m5, m6, m7)
 
 summary(m6)
 kruskal.test(dg1 ~ Species, data = all)
 a1 <- aov(V2 ~ Species, data = all)
 summary(a1)
 TukeyHSD(a1)
+
+ggplot(all, aes(Species, dg1)) + geom_boxplot() + ylab("Degree Centrality")
+
 
 #betweeness
 ggplot(all, aes(bt1)) + geom_density()
@@ -308,40 +312,31 @@ summary(v2)
 car::Anova(v2, type = 2)
 
 
-
-v3 <- glmmTMB(V2 ~ Quantity + S*N.flowers + (1|Species), family = "gaussian", data = all)
+v3 <- glmmTMB(V2 ~  Quantity + (1|Species), family = "gaussian", data = all)
 summary(v3)
-car::Anova(v3, type = 3)
+car::Anova(v3, type = 2)
+AIC(v1, v2, v3)
 
-
-v4 <- glmmTMB(V2 ~  Quantity + (1|Species), family = "gaussian", data = all)
-summary(v4)
-AIC(v1, v2, v3, v4)
-
-
-
-interact_plot(v3, S, N.flowers)
-shapiro.test(resid(v4))
-
+shapiro.test(resid(v3))
 vnull <-glmmTMB(V2 ~ (1|Species), family = "gaussian", data = all)
 AIC(v1, vnull)
 anova(v1, vnull)
 
-
+kruskal.test(V2 ~ Species, data = all)
+ggplot(all, aes(Species, V2)) + geom_boxplot() + ylab("Eigancentrality")
 
 ```
 
 #maybe just use the number of sampled plants as an offset??
 #conspecifics
+```{r}
 all <- mutate(all, uncon = n - cons)
 
 y <- cbind(all$cons, all$uncon)
 
-m3 <- glmmTMB(st.con ~ shrub.density + day +(1|Species), family = "binomial"(link = "logit"), data = all)
-summary(m3)
 
 plot(m3)
-m4 <- glmmTMB(z ~ shrub.density+ dg1* Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
+m4 <- glmmTMB(y ~ shrub.density+ dg1* Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
 summary(m4)
 interact_plot(m4, dg1, Quantity)
 overdisp(m4)
@@ -349,8 +344,8 @@ overdisp(m4)
 m5 <- glmmTMB(y ~ shrub.density+ dg1+Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
 AIC(m4, m5)
 car::Anova(m4, type = 3)
-
 summary(m4)
+
 m5 <- glm(y ~ day+dg1 + shrub.density + Species, family = "quasibinomial"(link = "logit"), data = all)
 car::Anova(m5, type = 2)
 summary(m5)
@@ -375,49 +370,57 @@ z <- cbind(all$hets, all$unhet)
 
 m1 <- glmmTMB(z ~ day + shrub.density+ dg1+ Quantity+ N.flowers+ (1|Species), family = "binomial"(link = "logit"), data = all)
 summary(m1)
+overdisp(m1)
 
-m5 <- MASS::glmmPQL(z ~ shrub.density+ dg1 + N.flowers + Quantity + day, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
+m5 <- MASS::glmmPQL(z ~ dg1 * Quantity, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
 summary(m5)
+car::Anova(m5, type = 3)
+
 car::vif(m5)
 
 cor.test(all$dg1, all$Quantity)
 ```
 
 #Effective partners
-{r}
+```{r}
 
 
-shapiro.test(all$lower.level.effective.partners)
-m1 <- glmmTMB(lower.level.effective.partners ~ density +(1|Species), family = "poisson", data = all)
-summary(m1)
-
-m2 <- glmmTMB(lower.level.effective.partners ~ Quantity+day + shrub.density +  (1|Species), family = "poisson", data = all)
-summary(m2)
-AIC(m1, m2)
-
-m2 <- glmmTMB(lower.level.effective.partners ~ density + (1|Species), family = "nbinom1", data = all)
-
-m1 <- glmmTMB(effective.partners ~ shrub.density +(1|Species), family = "poisson", data = all)
-m2 <- glmmTMB(effective.partners ~ density + (1|Species), family = "nbinom1", data = all)
-AIC(m1, m2)
-overdisp(m1)
-
-m2 <- glmmTMB(effective.partners ~ Quantity+day + shrub.density +  (1|Species), family = "poisson", data = all)
-summary(m2)
-AIC(m1, m2)
-
-m2 <- glmmTMB(lower.level.effective.partners ~ density + (1|Species), family = "nbinom2", data = all)
+m1 <- glmmTMB(effective.partners ~ Quantity+day + shrub.density + N.flowers + (1|Species), family = "poisson", data = all)
 
 summary(m1)
-AIC(m1, m2)
 
 
-multicollin(m2)
-r2(m2)
-is_singular(m2)
-overdisp(m1)
+m2 <- glmmTMB(effective.partners ~ Quantity + shrub.density + day+ (1|Species), family = "poisson", data = all)
 
+m3 <- glmmTMB(effective.partners ~ Quantity + shrub.density + (1|Species), family = "poisson", data = all)
+
+summary(m3)
+car::Anova(m3, type = 2)
+overdisp(m3)
+
+ggplot(all, aes(Species, effective.partners)) + geom_boxplot()
+kruskal.test(effective.partners ~ Species, data = all)
 ```
+
+```{r, nestedness}
+ggplot(all, aes(nestedcontribution)) + geom_density()
+shapiro.test(all$nestedcontribution)
+
+n1 <- glmmTMB(nestedcontribution ~ N.flowers + Quantity + day + shrub.density + +(1|Species), family = "gaussian", data = all)
+shapiro.test(resid(n1))
+summary(n1)
+
+n2 <- glmmTMB(nestedcontribution ~ Quantity  +(1|Species), family = "gaussian", data = all)
+shapiro.test(resid(n2))
+summary(n2)
+car::Anova(n2, type = 2)
+
+a1 <- lm(nestedcontribution ~ Species, data = all)
+shapiro.test(resid(a1))
+summary(a1)
+```
+
+
 
 Network comparisons
 
@@ -434,8 +437,14 @@ sp.ran.mod <- ranModules(sp)
 mean(sp.ran.mod$`X[[i]]`)
 net.zscore(sp.m@likelihood, sp.ran.mod$`X[[i]]`)
 ind.ran.mod <- ranModules(ind1)
-
+net.zscore(0.5893211, ind.ran.mod$`X[[i]]`)
+mean(ind.ran.mod$`X[[i]]`)
+max(ind.ran.mod$`X[[i]]`)
+ind.network <- ranindices(ind1)
 ```
+
+
+
 
 #Modules and modularity modelling
 
@@ -479,9 +488,11 @@ t <- unlist(t, use.names=FALSE)
 t <- as.data.frame(t)
 write.csv(t, "randommoduleoutput.csv")
 net.zscore(0.335, t$t)
-
+mean(t$t)
 
 print(null.module[[3]][2])
+
+
 
 #violindles
 ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species), shape=16, position=position_jitter(0.2))
