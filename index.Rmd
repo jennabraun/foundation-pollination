@@ -287,7 +287,7 @@ car::Anova(b1, type = 2)
 
 b2 <-glmmTMB(btbin ~ shrub.density + Quantity + day + N.flowers + (1|Species), family = "binomial", data = all)
 summary(b2)
-
+car::Anova(b2, type = 2)
 
 b3 <- glmmTMB(log(bt1) ~ Quantity +(1|Species), family = "gaussian", data = bt)
 summary(b3)
@@ -398,6 +398,10 @@ summary(m3)
 car::Anova(m3, type = 2)
 overdisp(m3)
 
+m4 <- glmmTMB(effective.partners ~ Quantity + shrub.density + day+ N.flowers + (1|Species), family = "poisson", data = all)
+summary(m4)
+car::Anova(m4, type = 2)
+
 ggplot(all, aes(Species, effective.partners)) + geom_boxplot()
 kruskal.test(effective.partners ~ Species, data = all)
 ```
@@ -409,6 +413,7 @@ shapiro.test(all$nestedcontribution)
 n1 <- glmmTMB(nestedcontribution ~ N.flowers + Quantity + day + shrub.density + +(1|Species), family = "gaussian", data = all)
 shapiro.test(resid(n1))
 summary(n1)
+car::Anova(n1, type = 2)
 
 n2 <- glmmTMB(nestedcontribution ~ Quantity  +(1|Species), family = "gaussian", data = all)
 shapiro.test(resid(n2))
@@ -437,10 +442,48 @@ sp.ran.mod <- ranModules(sp)
 mean(sp.ran.mod$`X[[i]]`)
 net.zscore(sp.m@likelihood, sp.ran.mod$`X[[i]]`)
 ind.ran.mod <- ranModules(ind1)
-net.zscore(0.5893211, ind.ran.mod$`X[[i]]`)
-mean(ind.ran.mod$`X[[i]]`)
-max(ind.ran.mod$`X[[i]]`)
-ind.network <- ranindices(ind1)
+#ind.ran.mod <- read.csv("randommoduleoutput.csv")
+net.zscore(0.5893211, ind.ran.mod$t)
+mean(ind.ran.mod$t)
+max(ind.ran.mod$t)
+
+
+
+
+#ind.WNODF <- ranindices(ind1)
+#net.zscore(4.65012620, ind.WNODF$`weighted NODF`)
+#mean(ind.WNODF$`weighted NODF`)
+max(ind.WNODF$`weighted NODF`)
+min(ind.WNODF$`weighted NODF`)
+
+#ind.WC <- ranindices(ind1)
+#net.zscore(0.08094487, ind.WC$`weighted connectance`)
+mean(ind.WC$`weighted connectance`)
+max(ind.WC$`weighted connectance`)
+min(ind.WC$`weighted connectance`)
+
+write.csv(ind.WC, "indrandomWC.csv")
+
+#ind.H2 <- ranindices(ind1)
+#net.zscore(0.56665181, ind.H2$H2)
+mean(ind.H2$H2)
+max(ind.H2$H2)
+
+write.csv(ind.H2, "indrandomH2.csv")
+
+ran.sp <- ranindices(sp)
+net.zscore(0.42532319, ran.sp$H2)
+mean(ran.sp$H2)
+max(ran.sp$H2)
+
+net.zscore(32.82754538, ran.sp$`weighted NODF`)
+mean(ran.sp$`weighted NODF`)
+max(ran.sp$`weighted NODF`)
+
+net.zscore(0.15038761, ran.sp$`weighted connectance`)
+mean(ran.sp$`weighted connectance`)
+
+
 ```
 
 
@@ -472,6 +515,10 @@ kruskal.test(module ~ N.flowers, data = all)
 kruskal.test(module ~ shrub.density, data = all)
 kruskal.test(module ~ Quantity, data = all)
 
+m4 <- multinom(module ~ Species + shrub.density +  Quantity + imp.den + N.flowers, data = all)
+summary(m4)
+car::Anova(m4)
+AIC(m4)
 
 #make 1000 random networks, project to one-mode, compute modularity
 null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
@@ -497,5 +544,6 @@ print(null.module[[3]][2])
 #violindles
 ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species), shape=16, position=position_jitter(0.2))
 
-ggplot(n1data, aes(module, N.flowers)) + geom_boxplot()
+ggplot(all, aes(module, N.flowers)) + geom_boxplot()
+ggplot(all, aes(module, shrub.density)) + geom_boxplot()
 ```
