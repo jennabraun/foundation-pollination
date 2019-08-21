@@ -1,8 +1,0 @@
-
-<table style="text-align:center"><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td>Chisq</td><td>Df</td><td>Pr(> Chisq)</td></tr>
-<tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">(Intercept)</td><td>0.671</td><td>1</td><td>0.413</td></tr>
-<tr><td style="text-align:left">shrub.density</td><td>5.320</td><td>1</td><td>0.021</td></tr>
-<tr><td style="text-align:left">N.flowers.scaled</td><td>1.769</td><td>1</td><td>0.183</td></tr>
-<tr><td style="text-align:left">im.site</td><td>0.153</td><td>1</td><td>0.695</td></tr>
-<tr><td style="text-align:left">N.flowers.scaled:im.site</td><td>6.832</td><td>1</td><td>0.009</td></tr>
-<tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr></table>
