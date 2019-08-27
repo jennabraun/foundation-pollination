@@ -407,6 +407,10 @@ m4 <- glmmTMB(effective.partners ~ Quantity + shrub.density + day+ N.flowers + (
 summary(m4)
 car::Anova(m4, type = 2)
 
+mnull <- glmmTMB(effective.partners ~ (1|Species), family = "poisson", data = all)
+
+AIC(m2, m3, m4, mnull)
+
 ggplot(all, aes(Species, effective.partners)) + geom_boxplot()
 kruskal.test(effective.partners ~ Species, data = all)
 ```
@@ -547,8 +551,37 @@ print(null.module[[3]][2])
 
 
 #violindles
-ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species), shape=16, position=position_jitter(0.2))
+ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Study Day") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))  + scale_color_discrete(name = "Species", labels = labels) + scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17, 3), labels = labels)
+
+
+
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Larrea tridentata", "Scutellaria mexicana", "Salvia dorri", "Echinocereus engelmannii", "Opuntia basilaris", "Cylindropuntia echinocarpa")
 
 ggplot(all, aes(module, N.flowers)) + geom_boxplot()
 ggplot(all, aes(module, shrub.density)) + geom_boxplot()
+
+
+#centrality species comparisons
+
+ggplot(all, aes(Species, Quantity)) + geom_boxplot() + ylab("Visitation Rate")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+ggplot(all, aes(Species, dg1)) + geom_boxplot() + ylab("Degree Centrality")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+ggplot(all, aes(Species, V2)) + geom_boxplot() + ylab("Eigancentrality")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+ggplot(all, aes(Species, bt1)) + geom_boxplot() + ylab("Betweenness")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+
+
+
+ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 ```
