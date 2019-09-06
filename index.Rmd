@@ -275,6 +275,11 @@ summary(m6)
 car::Anova(m6, type = 2)
 AIC(m2, m5, m6, m7)
 
+m8 <- MASS::glm.nb(dg1 ~ Quantity+ shrub.density + day  * N.flowers + Species, data = all)
+
+summary(m8)
+car::Anova(m8)
+
 summary(m6)
 kruskal.test(dg1 ~ Species, data = all)
 a1 <- aov(V2 ~ Species, data = all)
