@@ -1,41 +1,33 @@
 ---
-title: ""
+title: Neighbours shapes pollination network topology
 output:
-  html_document:
-    toc: true
-    toc_float: true
+    rmdformats::readthedown:
+      collapsed: false
+      highlight: kate
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(dplyr)
+library(tidyverse)
 library(glmmTMB)
-library(ggplot2)
-library(tidyr)
 library(bipartite)
 library(igraph)
-library(jtools)
 library(vegan)
 library(rnetcarto)
-library(sjstats)
-library(knitr)
 library(sjPlot)
 library(corrplot)
-library(purrr)
 ```
 
-# Desert shrub facilitation shapes pollination network topology
-\newline
 
-***
-\newline
+
+### Build network from visitation dataset
+
 ```{r, loading clean datasets}
 #dataset with aggregated visits (i.e. number of visits per rep, no pollinator ID) with joined covariates & calculated densities
 #contains reps with zero visits
 #wrangling all done using visits.R
 
 data <- read.csv("Data/Output/visitation_cleaned.csv")
-data <- data %>% mutate(time = ifelse(day <= 10, "early", 
-                                            ifelse(day > 10, "later", "mid")))
+
 
 #long version with pollinator ID, list of visits only for building network 
 visits <- read.csv("Data/visitation_data.csv")
@@ -48,9 +40,8 @@ visits$Species <- gsub(" ","", visits$Species)
 visits$Species <- gsub('\"',"", visits$Species)
 sum(visits$Quantity)
 visits$uniID <- paste(visits$Species, visits$WP)
-#visits <- right_join(cl.con, visits, by = "uniID")
-#visits <- right_join(time, visits, by = "uniID")
 ```
+
 # Functions
 ```{r, functions}
 
@@ -103,7 +94,9 @@ ranModules <- function(x){
 
 
 ```
+#  Calculations
 
+## Centrality measures
 ```{r}
 #make an individual network using functional groups
 ind1 <- net(visits, uniID, fun.grp)
@@ -130,6 +123,7 @@ all <- mutate(all, btbin = ifelse(bt1 == 0, 0, 1))
 bt <- filter(all, bt1 > 0)
 ```
 
+## Effective partners
 ```{r, specieslevel indices}
 #calculate species level indices
 sp <- specieslevel(ind1, index = "effective partners")
@@ -138,6 +132,8 @@ pl <- as.data.frame(pl)
 pl$uniID <- row.names(pl)
 all <- left_join(pl, all, by = "uniID")
 ```
+
+## Proportion of conspecific/heterospecific interactors
 
 ```{r, population proportions}
 
@@ -176,6 +172,7 @@ dat <- select(dat, uniID, 37:42)
 all <- left_join(all, dat, by = "uniID")
 ```
 
+## Contribution to nestedness
 ```{r, nested}
 #this step is slow & can be skipped w/o issues. load from csv but code is here.  takes 30 min 
 #ne <- nestedcontribution(ind1)
@@ -189,6 +186,7 @@ ne.low <- select(ne.low, -X)
 all <- left_join(all, ne.low, by = "uniID")
 ```
 
+## Unipartitite modularity
 ```{r, unipartite modularity}
 one1 <- as.one.mode(ind1, fill = 0, project = "lower", weighted = TRUE)
 mods <- netcarto(one1)
@@ -198,14 +196,20 @@ all <- left_join(all, n1data, by = "uniID")
 all$module <- as.factor(all$module)
 ```
 
+
+
 # EDA
+
+
 ```{r}
-ggplot(data, aes(N.flowers, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") 
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Larrea tridentata", "Scutellaria mexicana", "Salvia dorri", "Echinocereus engelmannii", "Opuntia basilaris", "Cylindropuntia echinocarpa")
 
-ggplot(data, aes(N.flowers, Height)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") 
+ggplot(data, aes(N.flowers, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") + scale_color_discrete("", labels = labels) + ylab("Visitation Rate") + xlab("Floral display size")
+
+ggplot(data, aes(N.flowers, Height)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") + scale_color_discrete("", labels = labels) + xlab("Floral display size")
 
 
-ggplot(data, aes(shrub.density, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") 
+ggplot(data, aes(shrub.density, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") + scale_color_discrete("", labels = labels) + ylab("Visitation rate") + xlab("Neighbourhood shrub density")
 
 pl <- select(all, Species, shrub.density, dg1, st.con, st.het)
 pl <- gather(pl,type, prop, 4:5)
@@ -224,14 +228,11 @@ corrplot(M, method = "number") # Display the correlation coefficient
 
 ```{r, visitation rates}
 m1 <- glmmTMB(Quantity ~density + N.flowers + imp.den + (1|Species), family = "nbinom2", data = data)       
-summary(m1)
+
 m1p <- glmmTMB(Quantity ~density + N.flowers + imp.den + (1|Species), family = "poisson", data = data)       
-summary(m1p)
 
 AIC(m1, m1p)
 #negative binomial #2 is the best
-
-
 
 m1 <-glmmTMB(Quantity ~density * N.flowers + day + (1|Species), family = "nbinom2", data = data)
 m2 <- glmmTMB(Quantity ~ density + N.flowers + day + (1|Species), family = "nbinom2", data = data)       
@@ -242,15 +243,17 @@ m6 <- glmmTMB(Quantity ~ shrub.density + N.flowers * day + (1|Species), family =
 m7 <- glmmTMB(Quantity ~ shrub.density + N.flowers * imp.den + (1|Species), family = "nbinom2", data = data)
 m8 <- glmmTMB(Quantity ~ cactus.density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
 m9 <- glmmTMB(Quantity ~ con.density + N.flowers * day+ (1|Species), family = "nbinom2", data = data)
-mnull <-glmmTMB(Quantity ~  (1|Species), family = "nbinom2", data = data)
+
+mnull <-glmmTMB(Quantity ~ (1|Species), family = "nbinom2", data = data)
 
 kable(AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, mnull))
 summary(m6)
 tab_model(m6)
+anova(m6, mnull)
 kable(car::Anova(m6, type = 3))
-car::vif(lm(Quantity ~ shrub.density + N.flowers * day, data = data))
-interact_plot(m6, pred = "N.flowers", modx = "day")
 
+library(performance)
+check_collinearity(m6)
 ```
 
 
@@ -262,29 +265,23 @@ m2 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "nbinom2", data 
 m3 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "poisson", data = all)
 m4 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "nbinom1", data = all)
 AIC(m2, m3, m4)
-
+#nbinom2
 
 m5 <- glmmTMB(dg1 ~ N.flowers +(1|Species), family = "nbinom2", data = all)
-summary(m5)
 m6 <- glmmTMB(dg1 ~ Quantity+(1|Species), family = "nbinom2", data = all)
 m7 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  + N.flowers + (1|Species), family = "nbinom2", data = all)
+summary(m7)
 m8 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  * N.flowers + (1|Species), family = "nbinom2", data = all)
 summary(m8)
-summary(m6)
+mnull <- glmmTMB(dg1 ~  (1|Species), family = "nbinom2", data = all)
 
+AIC(m2, m5, m6, m7, m8, mnull)
+
+summary(m6)
 car::Anova(m6, type = 2)
-AIC(m2, m5, m6, m7)
 
-m8 <- MASS::glm.nb(dg1 ~ Quantity+ shrub.density + day  * N.flowers + Species, data = all)
-
-summary(m8)
-car::Anova(m8)
-
-summary(m6)
 kruskal.test(dg1 ~ Species, data = all)
-a1 <- aov(V2 ~ Species, data = all)
-summary(a1)
-TukeyHSD(a1)
+
 
 ggplot(all, aes(Species, dg1)) + geom_boxplot() + ylab("Degree Centrality")
 
@@ -345,10 +342,10 @@ all <- mutate(all, uncon = n - cons)
 y <- cbind(all$cons, all$uncon)
 
 
-plot(m3)
+
 m4 <- glmmTMB(y ~ shrub.density+ dg1* Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
 summary(m4)
-interact_plot(m4, dg1, Quantity)
+#interact_plot(m4, dg1, Quantity)
 overdisp(m4)
 
 m5 <- glmmTMB(y ~ shrub.density+ dg1+Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
@@ -443,7 +440,7 @@ summary(a1)
 
 Network comparisons
 
-```{r}
+{r}
 sp <- net(visits, Species, fun.grp)
 n <- networklevel(sp)
 n <- as.data.frame(n)
@@ -505,7 +502,7 @@ mean(ran.sp$`weighted connectance`)
 
 #Modules and modularity modelling
 
-```{r, module}
+{r, module}
 library(nnet)
 m1 <- multinom(module ~ Species + shrub.density +  Quantity + N.flowers*day, data = all)
 summary(m1)
@@ -535,26 +532,26 @@ car::Anova(m4)
 AIC(m4)
 
 #make 1000 random networks, project to one-mode, compute modularity
-null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
-null.mod <- null.mod$perm
-null.one <- map(null.mod, as.one.mode, fill = 0, project = "lower", weighted = TRUE)
-null.module <- map(null.one, netcarto)
+#null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
+#null.mod <- null.mod$perm
+#null.one <- map(null.mod, as.one.mode, fill = 0, project = "lower", weighted = TRUE)
+#null.module <- map(null.one, netcarto)
 
-t <- list()  
-for (i in 1:1000){
-    ind <- null.module[[i]][2]
-    t <- c(t, ind)
-  } 
-t <- unlist(t, use.names=FALSE)
-t <- as.data.frame(t)
-write.csv(t, "randommoduleoutput.csv")
+#t <- list()  
+#for (i in 1:1000){
+#    ind <- null.module[[i]][2]
+ #   t <- c(t, ind)
+#  } 
+#t <- unlist(t, use.names=FALSE)
+#t <- as.data.frame(t)
+#write.csv(t, "randommoduleoutput.csv")
 net.zscore(0.335, t$t)
 mean(t$t)
 
 print(null.module[[3]][2])
 
 
-
+```{r}
 #violindles
 ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Study Day") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))  + scale_color_discrete(name = "Species", labels = labels) + scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17, 3), labels = labels)
@@ -568,21 +565,24 @@ ggplot(all, aes(module, shrub.density)) + geom_boxplot()
 
 
 #centrality species comparisons
+#make a smaller dataframe of means and se for figure 1
+library(ggthemes)
+se <- function(x) {sd(x)/sqrt(length(x))} ## SE
 
-ggplot(all, aes(Species, Quantity)) + geom_boxplot() + ylab("Visitation Rate")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+
+central <- all %>% group_by(Species) %>% summarise(mean.dg = mean(dg1), se.dg = se(dg1), mean.visits = mean(Quantity), se.visits = se(Quantity), mean.eig = mean(V2), se.eig = se(V2), mean.bt = mean(bt1), se.bt = se(bt1))
+
+
+ggplot(central, aes(Species, mean.visits)) + geom_bar(stat = "identity") + ylab("Visitation Rate")+ geom_errorbar(aes(Species, ymin = mean.visits - se.visits, ymax = mean.visits + se.visits)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean.dg - se.dg, ymax = mean.dg + se.dg)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(all, aes(Species, dg1)) + geom_boxplot() + ylab("Degree Centrality")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(all, aes(Species, V2)) + geom_boxplot() + ylab("Eigancentrality")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
-
-ggplot(all, aes(Species, bt1)) + geom_boxplot() + ylab("Betweenness")+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
-
-
-
 
 ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
