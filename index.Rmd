@@ -570,18 +570,30 @@ library(ggthemes)
 se <- function(x) {sd(x)/sqrt(length(x))} ## SE
 
 
-central <- all %>% group_by(Species) %>% summarise(mean.dg = mean(dg1), se.dg = se(dg1), mean.visits = mean(Quantity), se.visits = se(Quantity), mean.eig = mean(V2), se.eig = se(V2), mean.bt = mean(bt1), se.bt = se(bt1))
+central.means <- all %>% group_by(Species) %>% summarise(dg = mean(dg1), visits = mean(Quantity), eig = mean(V2), bt = mean(bt1)) %>% gather(var, mean, 2:5)
+
+central.se <- all %>% group_by(Species) %>% summarise(dg = se(dg1), visits = se(Quantity), eig = se(V2), bt = se(bt1)) %>% gather(var, se, 2:5)
 
 
-ggplot(central, aes(Species, mean.visits)) + geom_bar(stat = "identity") + ylab("Visitation Rate")+ geom_errorbar(aes(Species, ymin = mean.visits - se.visits, ymax = mean.visits + se.visits)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+cent <- cbind(central.means, central.se)
+
+cent <- cent[,c(1,2,3,6)]
+
+
+ggplot(cent, aes(Species, mean)) + geom_bar(stat = "identity", aes(fill = Species)) +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + facet_wrap(~var, scales = "free") 
+
+
+
+
+#ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
-ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean.dg - se.dg, ymax = mean.dg + se.dg)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+
+
+#ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
-
-ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+#ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
 ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
