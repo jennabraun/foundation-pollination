@@ -13,8 +13,8 @@ library(bipartite)
 library(igraph)
 library(vegan)
 library(rnetcarto)
-library(sjPlot)
 library(corrplot)
+library(performance)
 ```
 
 
@@ -179,9 +179,9 @@ all <- left_join(all, dat, by = "uniID")
 #ne.low <- ne[[2]]
 #ne.top <- ne[[1]]
 #ne.low$uniID <- row.names(ne.low)
-#write.csv(ne.low, "nelow.csv")
-#write.csv(ne.top, "netop.csv")
-ne.low <- read.csv("nelow.csv")
+#write.csv(ne.low, "data/Output/nelow.csv")
+#write.csv(ne.top, "data/Output/netop.csv")
+ne.low <- read.csv("data/Output/nelow.csv")
 ne.low <- select(ne.low, -X)
 all <- left_join(all, ne.low, by = "uniID")
 ```
@@ -196,10 +196,36 @@ all <- left_join(all, n1data, by = "uniID")
 all$module <- as.factor(all$module)
 ```
 
+These sections take a long time to run. Therefore, the output is stored in .csv but the code is commented out here. 
+
+Individual-based network
+```{r}
+#make 1000 random networks, project to one-mode, compute modularity
+#null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
+#null.mod <- null.mod$perm
+#null.one <- map(null.mod, as.one.mode, fill = 0, project = "lower", weighted = TRUE)
+#null.module <- map(null.one, netcarto)
+
+#t <- list()  
+#for (i in 1:1000){
+#    ind <- null.module[[i]][2]
+#   t <- c(t, ind)
+#  } 
+#t <- unlist(t, use.names=FALSE)
+#t <- as.data.frame(t)
+#write.csv(t, "Data/Randomization_Outputs/randommoduleoutput_unipartite.csv")
+t <- read.csv("Data/Randomization_Outputs/randommoduleoutput_unipartite.csv")
+mods[[2]]
+net.zscore(mods[[2]], t$t)
+#value is 0.335, was output by netcarto earlier in script
+mean(t$t)
+
+#print(null.module[[3]][2])
+
+```
 
 
 # EDA
-
 
 ```{r}
 labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Larrea tridentata", "Scutellaria mexicana", "Salvia dorri", "Echinocereus engelmannii", "Opuntia basilaris", "Cylindropuntia echinocarpa")
@@ -226,11 +252,11 @@ corrplot(M, method = "number") # Display the correlation coefficient
 
 # Modelling
 
+
+## Visitation rates
 ```{r, visitation rates}
 m1 <- glmmTMB(Quantity ~density + N.flowers + imp.den + (1|Species), family = "nbinom2", data = data)       
-
 m1p <- glmmTMB(Quantity ~density + N.flowers + imp.den + (1|Species), family = "poisson", data = data)       
-
 AIC(m1, m1p)
 #negative binomial #2 is the best
 
@@ -240,94 +266,112 @@ m3 <- glmmTMB(Quantity ~ density + N.flowers * day + (1|Species), family = "nbin
 m4 <-glmmTMB(Quantity ~shrub.density * N.flowers + day + (1|Species), family = "nbinom2", data = data)
 m5 <- glmmTMB(Quantity ~ shrub.density + N.flowers + day + (1|Species), family = "nbinom2", data = data)       
 m6 <- glmmTMB(Quantity ~ shrub.density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
-m7 <- glmmTMB(Quantity ~ shrub.density + N.flowers * imp.den + (1|Species), family = "nbinom2", data = data)
-m8 <- glmmTMB(Quantity ~ cactus.density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
-m9 <- glmmTMB(Quantity ~ con.density + N.flowers * day+ (1|Species), family = "nbinom2", data = data)
-
+m7 <- glmmTMB(Quantity ~ cactus.density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
+m8 <- glmmTMB(Quantity ~ con.density + N.flowers * day+ (1|Species), family = "nbinom2", data = data)
 mnull <-glmmTMB(Quantity ~ (1|Species), family = "nbinom2", data = data)
 
-kable(AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, mnull))
-summary(m6)
-tab_model(m6)
-anova(m6, mnull)
-kable(car::Anova(m6, type = 3))
 
-library(performance)
+
+m9 <- glmmTMB(Quantity ~ shrub.density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
+m10 <- glmmTMB(Quantity ~ N.flowers * day + (1|Species), family = "nbinom2", data = data)
+m11 <- glmmTMB(Quantity ~ density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
+
+
+
+knitr::kable(anova(m10, m9, m11))
+#adding shrub density significantly improves model fits, but adding density does not.
+
+aic.visits <- AIC(m1, m2, m3, m4, m5, m6, m7, m8, m10, m11, mnull)
+knitr::kable(AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, mnull))
+
+
+
+
+
+summary(m6)
+anova(m6, mnull)
+knitr::kable(car::Anova(m6, type = 3))
 check_collinearity(m6)
 ```
-
+## Centrality - degree
 
 ```{r, centrality measures}
 #degree centrality
 
+#choosing betweene error families
 ggplot(all, aes(dg1)) + geom_density()
-m2 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "nbinom2", data = all)
-m3 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "poisson", data = all)
-m4 <- glmmTMB(dg1 ~ N.flowers+ Quantity + (1|Species), family = "nbinom1", data = all)
+m2 <- glmmTMB(dg1 ~ N.flowers+ Quantity + shrub.density + day + (1|Species), family = "nbinom2", data = all)
+m3 <- glmmTMB(dg1 ~ N.flowers+ Quantity + shrub.density + day + (1|Species), family = "poisson", data = all)
+m4 <- glmmTMB(dg1 ~ N.flowers+ Quantity + shrub.density + day + (1|Species), family = "nbinom1", data = all)
 AIC(m2, m3, m4)
 #nbinom2
 
-m5 <- glmmTMB(dg1 ~ N.flowers +(1|Species), family = "nbinom2", data = all)
-m6 <- glmmTMB(dg1 ~ Quantity+(1|Species), family = "nbinom2", data = all)
+#check if interaction should be included
 m7 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  + N.flowers + (1|Species), family = "nbinom2", data = all)
 summary(m7)
 m8 <- glmmTMB(dg1 ~ Quantity+ shrub.density + day  * N.flowers + (1|Species), family = "nbinom2", data = all)
-summary(m8)
+
 mnull <- glmmTMB(dg1 ~  (1|Species), family = "nbinom2", data = all)
 
-AIC(m2, m5, m6, m7, m8, mnull)
+AIC(m1, m2, m3, m7, m8, mnull)
 
-summary(m6)
-car::Anova(m6, type = 2)
+#model without interaction is best
+summary(m7)
+knitr::kable(car::Anova(m7, type = 2))
+check_collinearity(m7)
 
+
+#differences between species
 kruskal.test(dg1 ~ Species, data = all)
-
-
 ggplot(all, aes(Species, dg1)) + geom_boxplot() + ylab("Degree Centrality")
 
+```
 
+## Betweenness
+```{r, betweenness}
 #betweeness
 ggplot(all, aes(bt1)) + geom_density()
-b1 <- glmmTMB(btbin ~ shrub.density + Quantity + (1|Species), family = "binomial", data = all)
-summary(b1)
-car::Anova(b1, type = 2)
 
 b2 <-glmmTMB(btbin ~ shrub.density + Quantity + day + N.flowers + (1|Species), family = "binomial", data = all)
-summary(b2)
-car::Anova(b2, type = 2)
 
-b3 <- glmmTMB(log(bt1) ~ Quantity +(1|Species), family = "gaussian", data = bt)
-summary(b3)
-car::Anova(b3, type = 2)
-shapiro.test(resid(b3))
+bnull <- glmmTMB(btbin ~ 1 + (1|Species), family = "binomial", data = all)
+anova(b2, bnull)
+
+summary(b2)
+knitr::kable(car::Anova(b2, type = 2))
+check_collinearity(b2)
+
+
+#gaussian part
+
 
 b4 <- glmmTMB(log(bt1) ~ Quantity + shrub.density + day + N.flowers + (1|Species), family = "gaussian", data = bt)
+
+shapiro.test(resid(b4))
+
+b4null <- glmmTMB(log(bt1) ~ (1|Species), family = "gaussian", data = bt)
+anova(b4, b4null)
+check_collinearity(b4)
+
 summary(b4)
-car::Anova(b4, type = 2)
+knitr::kable(car::Anova(b4, type = 2))
+```
 
-#Eigancentrality
+## Eigancentrality
+
+```{r, eigancentrality}
 ggplot(all, aes(V2)) + geom_density()
-shapiro.test(log(all$V2))
-
-v1 <- glmmTMB(V2 ~ day + Quantity + (1|Species), family = "gaussian", data = all)
-summary(v1)
-car::Anova(v1, type = 2)
-shapiro.test(resid(v1))
 
 v2 <- glmmTMB(V2 ~ Quantity+ shrub.density + N.flowers + day +(1|Species), family = "gaussian", data = all)
-summary(v2)
-car::Anova(v2, type = 2)
 
 
-v3 <- glmmTMB(V2 ~  Quantity + (1|Species), family = "gaussian", data = all)
-summary(v3)
-car::Anova(v3, type = 2)
-AIC(v1, v2, v3)
-
-shapiro.test(resid(v3))
 vnull <-glmmTMB(V2 ~ (1|Species), family = "gaussian", data = all)
-AIC(v1, vnull)
-anova(v1, vnull)
+anova(v2, vnull)
+check_collinearity(v2)
+
+summary(v2)
+shapiro.test(resid(v2))
+knitr::kable(car::Anova(v2, type = 2))
 
 kruskal.test(V2 ~ Species, data = all)
 ggplot(all, aes(Species, V2)) + geom_boxplot() + ylab("Eigancentrality")
@@ -338,36 +382,33 @@ ggplot(all, aes(Species, V2)) + geom_boxplot() + ylab("Eigancentrality")
 #conspecifics
 ```{r}
 all <- mutate(all, uncon = n - cons)
-
 y <- cbind(all$cons, all$uncon)
 
-
-
-m4 <- glmmTMB(y ~ shrub.density+ dg1* Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
+m4 <- glmmTMB(y ~ shrub.density+ dg1 + N.flowers + day +(1|Species), family = "binomial"(link = "logit"), data = all)
 summary(m4)
 #interact_plot(m4, dg1, Quantity)
-overdisp(m4)
+check_overdispersion(m4)
 
-m5 <- glmmTMB(y ~ shrub.density+ dg1+Quantity+ (1|Species), family = "binomial"(link = "logit"), data = all)
-AIC(m4, m5)
-car::Anova(m4, type = 3)
+#overdispersed
+
+
+cor.test(all$dg1, all$Quantity)
+cor.test(all$bt1, all$dg1)
+
+m4 <- MASS::glmmPQL(y ~ shrub.density+ dg1+ N.flowers + day, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
+
+#check_collinearity(m4)
+#check_overdispersion(m4)
+
 summary(m4)
-
-m5 <- glm(y ~ day+dg1 + shrub.density + Species, family = "quasibinomial"(link = "logit"), data = all)
-car::Anova(m5, type = 2)
-summary(m5)
-
-m4 <- MASS::glmmPQL(y ~ shrub.density+ dg1, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
+m4 <- MASS::glmmPQL(y ~ shrub.density+ dg1 + N.flowers + day, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
 summary(m4)
+knitr::kable(car::Anova(m4, type = 2))
+car::vif(m4)
 
-m5 <- MASS::glmmPQL(y ~ shrub.density+ dg1 * Quantity, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
-summary(m5)
-car::vif(m5)
-car::Anova(m5, type = 2)
+
 
 library(jtools)
-
-
 
 cor.test(all$shrub.density, all$dg1)
 
@@ -375,47 +416,42 @@ cor.test(all$shrub.density, all$dg1)
 all <- mutate(all, unhet = hetn - hets)
 z <- cbind(all$hets, all$unhet)
 
-m1 <- glmmTMB(z ~ day + shrub.density+ dg1+ Quantity+ N.flowers+ (1|Species), family = "binomial"(link = "logit"), data = all)
+m1 <- glmmTMB(z ~ day + shrub.density+ dg1+ N.flowers+ (1|Species), family = "binomial"(link = "logit"), data = all)
 summary(m1)
-overdisp(m1)
+check_overdispersion(m1)
+#also overdisperse
 
-m5 <- MASS::glmmPQL(z ~ dg1 * Quantity, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
+m5 <- MASS::glmmPQL(z ~ dg1 + shrub.density + N.flowers + day, random = ~1|Species, family = "quasibinomial"(link = "logit"), data = all)
 summary(m5)
-car::Anova(m5, type = 3)
-
+knitr::kable(car::Anova(m5, type = 3))
 car::vif(m5)
 
 cor.test(all$dg1, all$Quantity)
 ```
 
-#Effective partners
+## Effective partners
 ```{r}
 
 
-m1 <- glmmTMB(effective.partners ~ Quantity+day + shrub.density + N.flowers + (1|Species), family = "poisson", data = all)
+m1 <- glmmTMB(effective.partners ~ Quantity + shrub.density + N.flowers + day +(1|Species), family = "poisson", data = all)
 
-summary(m1)
-
-
-m2 <- glmmTMB(effective.partners ~ Quantity + shrub.density + day+ (1|Species), family = "poisson", data = all)
-
-m3 <- glmmTMB(effective.partners ~ Quantity + shrub.density + (1|Species), family = "poisson", data = all)
-
-summary(m3)
-car::Anova(m3, type = 2)
-overdisp(m3)
-
-m4 <- glmmTMB(effective.partners ~ Quantity + shrub.density + day+ N.flowers + (1|Species), family = "poisson", data = all)
-summary(m4)
-car::Anova(m4, type = 2)
+#troubleshooting says no issues as long as no additional warnings
 
 mnull <- glmmTMB(effective.partners ~ (1|Species), family = "poisson", data = all)
 
-AIC(m2, m3, m4, mnull)
+anova(m1, mnull)
+summary(m1)
+knitr::kable(car::Anova(m1, type = 2))
+check_overdispersion(m1)
+check_collinearity(m1)
+
+
 
 ggplot(all, aes(Species, effective.partners)) + geom_boxplot()
 kruskal.test(effective.partners ~ Species, data = all)
 ```
+
+## Nestedness
 
 ```{r, nestedness}
 ggplot(all, aes(nestedcontribution)) + geom_density()
@@ -423,132 +459,111 @@ shapiro.test(all$nestedcontribution)
 
 n1 <- glmmTMB(nestedcontribution ~ N.flowers + Quantity + day + shrub.density + +(1|Species), family = "gaussian", data = all)
 shapiro.test(resid(n1))
+
+nnull <- glmmTMB(nestedcontribution ~  (1|Species), family = "gaussian", data = all)
+
+anova(n1, nnull)
+
+
+#meets assumptions
 summary(n1)
-car::Anova(n1, type = 2)
+knitr::kable(car::Anova(n1, type = 2))
 
-n2 <- glmmTMB(nestedcontribution ~ Quantity  +(1|Species), family = "gaussian", data = all)
-shapiro.test(resid(n2))
-summary(n2)
-car::Anova(n2, type = 2)
-
-a1 <- lm(nestedcontribution ~ Species, data = all)
-shapiro.test(resid(a1))
-summary(a1)
 ```
 
+#Modules and modularity modelling
+
+```{r, module}
+library(nnet)
+
+m1 <- multinom(module ~ Species + shrub.density +  Quantity +day + N.flowers, data = all)
+options(scipen=999)
+knitr::kable(car::Anova(m1, type = 2))
+
+```
+
+# Network comparisons
 
 
-Network comparisons
+The random network parts take a really long time to run, therefore are output as csv and read back in. Code is commented out. 
 
-{r}
+These are all bipartite networks
+```{r}
+
+#calculate network level indices for the bipartite networks. 
+
+#make a species network
 sp <- net(visits, Species, fun.grp)
 n <- networklevel(sp)
 n <- as.data.frame(n)
 
-i <- as.data.frame(networklevel(ind1))
-sp.m <- computeModules(sp)
-computeModules(ind1)
 
-sp.ran.mod <- ranModules(sp)
-mean(sp.ran.mod$`X[[i]]`)
-net.zscore(sp.m@likelihood, sp.ran.mod$`X[[i]]`)
-ind.ran.mod <- ranModules(ind1)
-#ind.ran.mod <- read.csv("randommoduleoutput.csv")
-net.zscore(0.5893211, ind.ran.mod$t)
+#use existing individual network
+#i <- as.data.frame(networklevel(ind1))
+#write.csv(i, "data/Output/ind_network_indices.csv")
+i <- read.csv("data/Output/ind_network_indices.csv")
+sp.m <- computeModules(sp)
+
+
+i.m <- computeModules(ind1)
+
+#run the random modules function on the species network
+#sp.ran.mod <- ranModules(sp)
+#write.csv(sp.ran.mod, "data/Randomization_outputs/randommodule_sp_bi.csv")
+sp.ran.mod <- read.csv("data/Randomization_outputs/randommodule_sp_bi.csv")
+mean(sp.ran.mod$`X..`)
+net.zscore(sp.m@likelihood, sp.ran.mod$`X..`)
+
+#run the random modules function on the individual network
+#ind.ran.mod <- ranModules(ind1)
+#write.csv(ind.ran.mod, "Data/Randomization_outputs/randommoduleoutput_bipartite.csv")
+
+ind.ran.mod <- read.csv("Data/Randomization_outputs/randommoduleoutput_bipartite.csv")
+net.zscore(i.m@likelihood, ind.ran.mod$t)
 mean(ind.ran.mod$t)
 max(ind.ran.mod$t)
 
 
+#ind.ran.allindices <- ranindices(ind1)
+
+#I ran this once and 
+
+ind.H2 <- read.csv("data/Randomization_outputs/indrandomH2.csv")
+ind.WC <- read.csv("data/Randomization_outputs/indrandomWC.csv")
+ind.WNODF <- read.csv("data/Randomization_outputs/indrandomWNODF.csv")
+
+net.zscore(4.65012620, ind.WNODF$weighted.NODF)
+net.zscore(i[10,], ind.WNODF$weighted.NODF)
+mean(ind.WNODF$weighted.NODF)
+max(ind.WNODF$weighted.NODF)
+min(ind.WNODF$weighted.NODF)
 
 
-#ind.WNODF <- ranindices(ind1)
-#net.zscore(4.65012620, ind.WNODF$`weighted NODF`)
-#mean(ind.WNODF$`weighted NODF`)
-max(ind.WNODF$`weighted NODF`)
-min(ind.WNODF$`weighted NODF`)
-
-#ind.WC <- ranindices(ind1)
-#net.zscore(0.08094487, ind.WC$`weighted connectance`)
+net.zscore(i[14,], ind.WC$`weighted connectance`)
 mean(ind.WC$`weighted connectance`)
 max(ind.WC$`weighted connectance`)
 min(ind.WC$`weighted connectance`)
 
-write.csv(ind.WC, "indrandomWC.csv")
-
-#ind.H2 <- ranindices(ind1)
-#net.zscore(0.56665181, ind.H2$H2)
+net.zscore(i[19,], ind.H2$H2)
 mean(ind.H2$H2)
 max(ind.H2$H2)
 
-write.csv(ind.H2, "indrandomH2.csv")
-
 ran.sp <- ranindices(sp)
-net.zscore(0.42532319, ran.sp$H2)
+net.zscore(n[19,], ran.sp$H2)
 mean(ran.sp$H2)
 max(ran.sp$H2)
 
-net.zscore(32.82754538, ran.sp$`weighted NODF`)
+net.zscore(n[10,], ran.sp$`weighted NODF`)
 mean(ran.sp$`weighted NODF`)
 max(ran.sp$`weighted NODF`)
 
-net.zscore(0.15038761, ran.sp$`weighted connectance`)
+net.zscore(n[14,], ran.sp$`weighted connectance`)
 mean(ran.sp$`weighted connectance`)
-
-
 ```
 
 
 
 
-#Modules and modularity modelling
-
-{r, module}
-library(nnet)
-m1 <- multinom(module ~ Species + shrub.density +  Quantity + N.flowers*day, data = all)
-summary(m1)
-car::Anova(m1)
-m2 <- multinom(module ~ Species + shrub.density +  Quantity +day + N.flowers, data = all)
-AIC(m1,m2)
-car::Anova(m2)
-summary(m2)
-anova(m1, m2)
-
-#<2 AIC difference, choose simpler
-m3 <- multinom(module ~ Species + shrub.density +  Quantity + day, data = all)
-AIC(m1, m2, m3)
-car::Anova(m3)
-summary(m3)
-
-m4 <- multinom(module ~ 1, data = all)
-AIC(m1, m2, m3, m4)
-
-kruskal.test(module ~ N.flowers, data = all)
-kruskal.test(module ~ shrub.density, data = all)
-kruskal.test(module ~ Quantity, data = all)
-
-m4 <- multinom(module ~ Species + shrub.density +  Quantity + imp.den + N.flowers, data = all)
-summary(m4)
-car::Anova(m4)
-AIC(m4)
-
-#make 1000 random networks, project to one-mode, compute modularity
-#null.mod <- permatfull(ind1, fixedmar = "both", times = 1000)
-#null.mod <- null.mod$perm
-#null.one <- map(null.mod, as.one.mode, fill = 0, project = "lower", weighted = TRUE)
-#null.module <- map(null.one, netcarto)
-
-#t <- list()  
-#for (i in 1:1000){
-#    ind <- null.module[[i]][2]
- #   t <- c(t, ind)
-#  } 
-#t <- unlist(t, use.names=FALSE)
-#t <- as.data.frame(t)
-#write.csv(t, "randommoduleoutput.csv")
-net.zscore(0.335, t$t)
-mean(t$t)
-
-print(null.module[[3]][2])
 
 
 ```{r}
@@ -586,19 +601,14 @@ panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
 
 
-#ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+#ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
 
-#ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+#ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-#ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+#ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 ```
