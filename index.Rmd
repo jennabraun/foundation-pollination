@@ -276,7 +276,8 @@ m9 <- glmmTMB(Quantity ~ shrub.density + N.flowers * day + (1|Species), family =
 m10 <- glmmTMB(Quantity ~ N.flowers * day + (1|Species), family = "nbinom2", data = data)
 m11 <- glmmTMB(Quantity ~ density + N.flowers * day + (1|Species), family = "nbinom2", data = data)
 
-
+m9.imp <- m9 <- glmmTMB(Quantity ~ shrub.density + N.flowers * imp.den + (1|Species), family = "nbinom2", data = data)
+AIC(m9.imp)
 
 knitr::kable(anova(m10, m9, m11))
 #adding shrub density significantly improves model fits, but adding density does not.
@@ -284,7 +285,7 @@ knitr::kable(anova(m10, m9, m11))
 aic.visits <- AIC(m1, m2, m3, m4, m5, m6, m7, m8, m10, m11, mnull)
 knitr::kable(AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, mnull))
 
-
+kruskal.test(data$Quantity, data$Species)
 
 
 
@@ -477,6 +478,7 @@ knitr::kable(car::Anova(n1, type = 2))
 library(nnet)
 
 m1 <- multinom(module ~ Species + shrub.density +  Quantity +day + N.flowers, data = all)
+summary(m1)
 options(scipen=999)
 knitr::kable(car::Anova(m1, type = 2))
 
@@ -583,32 +585,50 @@ ggplot(all, aes(module, shrub.density)) + geom_boxplot()
 #make a smaller dataframe of means and se for figure 1
 library(ggthemes)
 se <- function(x) {sd(x)/sqrt(length(x))} ## SE
-
-
 central.means <- all %>% group_by(Species) %>% summarise(dg = mean(dg1), visits = mean(Quantity), eig = mean(V2), bt = mean(bt1)) %>% gather(var, mean, 2:5)
-
 central.se <- all %>% group_by(Species) %>% summarise(dg = se(dg1), visits = se(Quantity), eig = se(V2), bt = se(bt1)) %>% gather(var, se, 2:5)
-
-
 cent <- cbind(central.means, central.se)
-
 cent <- cent[,c(1,2,3,6)]
+cent$var <- factor(cent$var, levels = c("visits", "dg", "eig", "bt", labels = c("Visitation Rates", "Degree centrality", "Eigenvector Centrality", "Betweenness")))
+
+ggplot(cent, aes(Species, mean)) + geom_point(stat = "identity", aes(fill = Species)) +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + facet_wrap(.~var, scales = "free")  
 
 
-ggplot(cent, aes(Species, mean)) + geom_bar(stat = "identity", aes(fill = Species)) +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + facet_wrap(~var, scales = "free") 
+visit_plot <- filter(cent, var == "visits")
+dg_plot <- filter(cent, var == "dg")
+eig_plot <- filter(cent, var == "eig")
+bt_plot <- filter(cent, var == "bt")
+
+a <- ggplot(visit_plot, aes(Species, mean)) + geom_point() +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + ylab("Mean Visitation Rate") + xlab("") + theme(axis.text.x = element_blank(),panel.border = element_rect(colour = "black", fill=NA, size=1), aspect.ratio = 1) 
+
+
+b <- ggplot(dg_plot, aes(Species, mean)) + geom_point() +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + ylab("Mean Degree Centrality") + xlab("") + theme(axis.text.x = element_blank(), panel.border = element_rect(colour = "black", fill=NA, size=1), aspect.ratio = 1) 
+
+c <- ggplot(eig_plot, aes(Species, mean, fill = Species)) + geom_point() +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + ylab("Mean Eigenvector Centrality") + scale_x_discrete(labels = labels) + theme(panel.border = element_rect(colour = "black", fill=NA, size=1), axis.text.x = element_text(angle = 90, hjust = 0.95, vjust = .1), legend.position = "none", aspect.ratio = 1) + xlab("")
+
+d <- ggplot(bt_plot, aes(Species, mean, fill = Species)) + geom_point() +  geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + ylab("Mean Betweenness Centrality") + scale_x_discrete(labels = labels) + theme(panel.border = element_rect(colour = "black", fill=NA, size=1), axis.text.x = element_text(angle = 90, hjust = 0.95, vjust = .1), legend.position = "none", aspect.ratio = 1) + xlab("")
+
+
+devtools::install_github("thomasp85/patchwork")
+#thank you thomas
+library(patchwork)
+a + b + c + d + plot_layout(ncol = 2)
+
+#Figure 2
 
 
 
+e <- ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position = "none", aspect.ratio = 1)
 
-#ggplot(central, aes(Species, mean.dg)) + geom_bar(stat = "identity") + ylab("Degree Centrality")+ geom_errorbar(aes(Species, ymin = mean - se, ymax = mean + se)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+f <- ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), legend.position = "bottom", aspect.ratio = 1) 
 
 
-#ggplot(central, aes(Species, mean.eig)) + geom_bar(stat = "identity") + ylab("Eigancentrality")+ geom_errorbar(aes(Species, ymin = mean.eig - se.eig, ymax = mean.eig + se.eig)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+a + b + plot_layout(ncol = 2)
+c + d + plot_layout(ncol = 2)
+e + f + plot_layout(ncol = 1)
 
-#ggplot(central, aes(Species, mean.bt)) + geom_bar(stat = "identity") + ylab("Betweenness")+ geom_errorbar(aes(Species, ymin = mean.bt - se.bt, ymax = mean.bt + se.bt)) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 
-ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
-
-ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+library(NeuralNetTools)
+plotnet(m1)
 ```
