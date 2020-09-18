@@ -79,6 +79,8 @@ ranindices <- function(x, index){
 }
 
 
+
+
 #calculates the modularity of 1000 random networks with fixed marginal totals of input and puts in a big dataframe. Bipartite modularity 
 ranModules <- function(x){
   y <- permatfull(x, fixedmar = "both", times = 1000)
@@ -494,7 +496,7 @@ knitr::kable(car::Anova(n1, type = 2))
 ```{r, module}
 library(nnet)
 
-m1 <- multinom(module ~ Species + shrub.density  +day + Quantity+ N.flowers, data = all)
+m1 <- multinom(module ~ Species + shrub.density  + Quantity+ N.flowers + day, data = all)
 summary(m1)
 options(scipen=999)
 knitr::kable(car::Anova(m1, type = 2))
@@ -513,7 +515,7 @@ These are all bipartite networks
 #calculate network level indices for the bipartite networks. 
 
 #make a species network
-sp <- net(visits, Species, uniID)
+sp <- net(visits, Species, ID)
 n <- networklevel(sp)
 n <- as.data.frame(n)
 
@@ -524,7 +526,6 @@ n <- as.data.frame(n)
 i <- read.csv("data/Output/ind_network_indices.csv")
 sp.m <- computeModules(sp)
 
-
 i.m <- computeModules(ind1)
 
 mod <- i.m@moduleWeb
@@ -532,6 +533,7 @@ mod <- i.m@moduleWeb
 #run the random modules function on the species network
 #sp.ran.mod <- ranModules(sp)
 #write.csv(sp.ran.mod, "data/Randomization_outputs/randommodule_sp_bi.csv")
+
 sp.ran.mod <- read.csv("data/Randomization_outputs/randommodule_sp_bi.csv")
 mean(sp.ran.mod$`X..`)
 net.zscore(sp.m@likelihood, sp.ran.mod$`X..`)
@@ -541,44 +543,50 @@ net.zscore(sp.m@likelihood, sp.ran.mod$`X..`)
 #write.csv(ind.ran.mod, "Data/Randomization_outputs/randommoduleoutput_bipartite.csv")
 
 ind.ran.mod <- read.csv("Data/Randomization_outputs/randommoduleoutput_bipartite.csv")
+ind.ran.mod$t <- ind.ran.mod$X..i..
 net.zscore(i.m@likelihood, ind.ran.mod$t)
 mean(ind.ran.mod$t)
 max(ind.ran.mod$t)
 
+#individual networks
 
-
-ind.WC <- ranindices(ind1, "connectance")
+ind.WC <- ranindices(ind1, "weighted connectance")
 ind.WNODF <-ranindices(ind1, "weighted NODF")
 ind.H2 <- ranindices(ind1, "H2")
 
+net.zscore(i[10,2], ind.WNODF$`weighted NODF`)
+mean(ind.WNODF$`weighted NODF`)
+max(ind.WNODF$`weighted NODF`)
+min(ind.WNODF$`weighted NODF`)
 
-net.zscore(4.65012620, ind.WNODF$weighted.NODF)
-net.zscore(i[10,], ind.WNODF$weighted.NODF)
-mean(ind.WNODF$weighted.NODF)
-max(ind.WNODF$weighted.NODF)
-min(ind.WNODF$weighted.NODF)
-
-
-net.zscore(i[14,], ind.WC$`weighted connectance`)
+net.zscore(i[14,2], ind.WC$`weighted connectance`)
 mean(ind.WC$`weighted connectance`)
 max(ind.WC$`weighted connectance`)
 min(ind.WC$`weighted connectance`)
 
-net.zscore(i[19,], ind.H2$H2)
+net.zscore(i[19,2], ind.H2$H2)
 mean(ind.H2$H2)
 max(ind.H2$H2)
 
-ran.sp <- ranindices(sp)
-net.zscore(n[19,], ran.sp$H2)
-mean(ran.sp$H2)
-max(ran.sp$H2)
+#species networks
 
-net.zscore(n[10,], ran.sp$`weighted NODF`)
-mean(ran.sp$`weighted NODF`)
-max(ran.sp$`weighted NODF`)
+sp.WNODF <- ranindices(sp, "weighted NODF")
+net.zscore(n[10,], sp.WNODF$`weighted NODF`)
+mean(sp.WNODF$`weighted NODF`)
+max(sp.WNODF$`weighted NODF`)
 
-net.zscore(n[14,], ran.sp$`weighted connectance`)
-mean(ran.sp$`weighted connectance`)
+sp.WC <- ranindices(sp, "weighted connectance")
+n[14,]
+net.zscore(n[14,], sp.WC$`weighted connectance`)
+mean(sp.WC$`weighted connectance`)
+max(sp.WC$`weighted connectance`)
+
+
+
+sp.H2 <- ranindices(sp, "H2")
+n[19,]
+net.zscore(n[19,], sp.H2$H2)
+mean(sp.H2$H2)
 ```
 
 
@@ -588,12 +596,12 @@ mean(ran.sp$`weighted connectance`)
 
 ```{r}
 #violindles
-ggplot(all, aes(module, day)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Study Day") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))  + scale_color_discrete(name = "Species", labels = labels) + scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17, 3), labels = labels)
+ggplot(all, aes(module, Quantity)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Study Day") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+scale_color_discrete(name = "Species", labels = labels) +
+scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17, 3), labels = labels) 
 
-
-
-labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Larrea tridentata", "Scutellaria mexicana", "Salvia dorri", "Echinocereus engelmannii", "Opuntia basilaris", "Cylindropuntia echinocarpa")
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
 
 ggplot(all, aes(module, N.flowers)) + geom_boxplot()
 ggplot(all, aes(module, shrub.density)) + geom_boxplot()
