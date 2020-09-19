@@ -27,10 +27,11 @@ library(performance)
 
 data <- read.csv("Data/Output/visitation_cleaned.csv")
 
-
+sum(data$Quantity)
 #long version with pollinator ID, list of visits only for building network 
 visits <- read.csv("Data/visitation_data.csv")
 visits$Quantity <- as.numeric(as.character(visits$Quantity))
+#some non-pollinator interactions were also recorded but designated with quantity = 0
 visits <- dplyr::filter(visits, Quantity>0)
 visits$Site <- "site"
 visits$ID <- gsub(" ","", visits$ID)
@@ -105,7 +106,7 @@ ranModules <- function(x){
 
 ind1 <- net(visits, uniID, ID)
 
-
+sum(ind1)
 #project into a unipartite network
 one1 <- as.one.mode(ind1, fill = 0, project = "lower", weight = "TRUE")
 
@@ -222,7 +223,7 @@ Individual-based network
 t <- read.csv("Data/Randomization_Outputs/randommoduleoutput_unipartite.csv")
 mods[[2]]
 net.zscore(mods[[2]], t$t)
-#value is 0.335, was output by netcarto earlier in script
+
 mean(t$t)
 
 #print(null.module[[3]][2])
@@ -596,12 +597,10 @@ mean(sp.H2$H2)
 
 ```{r}
 #violindles
-ggplot(all, aes(module, Quantity)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Study Day") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-scale_color_discrete(name = "Species", labels = labels) +
-scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17, 3), labels = labels) 
-
-labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
+ggplot(filter(all, module != "NA"), aes(module, Quantity)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Visitation Rate") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17), labels = labels) +scale_color_discrete(name = "Species", labels = labels)
+ 
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
 
 ggplot(all, aes(module, N.flowers)) + geom_boxplot()
 ggplot(all, aes(module, shrub.density)) + geom_boxplot()
