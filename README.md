@@ -15,6 +15,9 @@ See https://jennabraun.github.io/foundation-pollination/ for final work up
 * focal_shrub_covariates.csv - Covariates for each individual plant sampled including floral display size, time, species, date, neighbouring shrub density. "WP" is gps waypoint and plant ID
 * functionalgroups.csv - List of functional groups measured in this study
 * visitation_data.csv - Identity and quantity of floral visitors to shrub/cacti in this study
+* individual_network_bipartite.csv - Individual plant by pollinator group matrix
+* individual_plant_onemode.csv - Individual plant by individual plant matrix
+* species_network.csv - Plant species by pollinator group matrix
 
 Folders
 
@@ -23,11 +26,10 @@ Folders
 * Randomization Outputs - these are the output calculations from the randomization functions. The functions take a long time to run.
 * Raw Data - Excel workbook holding raw data entry and a shapefile showing locations of plants.
 
-* Raw Data folder holds 
-* Clean Data folder 
 
 ### Script descriptions
 * visits.R cleans visitation data from Data/visitation_data.csv and outputs visitation_cleaned.csv to be used in the index.rmd
+* spat.R calculates spatial autocorrelation
 
 
 

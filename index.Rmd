@@ -16,7 +16,7 @@ library(corrplot)
 library(performance)
 ```
 
-
+The front page of the repository containing data and additional code can be accessed here: [https://github.com/jennabraun/foundation-pollination]
 
 ### Build network from visitation dataset
 
@@ -526,8 +526,12 @@ These are all bipartite networks
 
 #make a species network
 sp <- net(visits, Species, ID)
+write.csv(sp, "Data/species_network.csv")
 n <- networklevel(sp)
 n <- as.data.frame(n)
+
+#output networks repo
+write.csv(ind1, "Data/individal_network.csv")
 
 
 #use existing individual network
