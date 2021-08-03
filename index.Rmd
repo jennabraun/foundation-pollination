@@ -273,12 +273,16 @@ m3 <- MASS::glm.nb(Quantity ~ density + N.flowers * day + Species, data = data)
 m4 <-MASS::glm.nb(Quantity ~shrub.density * N.flowers + day + Species, data = data)
 m5 <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers + day + Species,data = data)    
 m6 <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers * day + Species,  data = data)
+
 m6.2 <- MASS::glm.nb(Quantity ~ shrub.density + Height+day + N.flowers * day + Species,  data = data)
 summary(m6.2)
 check_collinearity(m6.2)
+#including height increases colinearity
 
 m6.3 <- MASS::glm.nb(Quantity ~ shrub.density + day + N.flowers * day + Species,  data = data)
 AIC(m6.2, m6.3)
+
+#including height increases colinearity without improving fit
 
 m7 <- MASS::glm.nb(Quantity ~ cactus.density + N.flowers * day + Species, data = data)
 m8 <- MASS::glm.nb(Quantity ~ con.density + N.flowers * day+ Species, data = data)
@@ -287,10 +291,13 @@ m9 <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers * day + Species, data = 
 m10 <- MASS::glm.nb(Quantity ~ N.flowers * day + Species,  data = data)
 m11 <- MASS::glm.nb(Quantity ~ density + N.flowers * day + Species,  data = data)
 
-m9.imp <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers * imp.den + Species, data = data)
-AIC(m9.imp)
+#m9.imp <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers * imp.den + Species, data = data)
+#AIC(m9.imp)
 
-knitr::kable(anova(m10, m9, m11))
+knitr::kable(anova(m10, m9, m11, test = "Chisq"))
+
+anova(m9, m11)
+anova(m10, m11)
 
 #adding shrub density significantly improves model fits, but adding density does not.
 
@@ -303,6 +310,8 @@ summary(m6)
 tabglm(m6)
 knitr::kable(car::Anova(m6, type = 3))
 check_collinearity(m6)
+
+#outputting "data" file to .csv for publication
 ```
 ## Centrality - degree
 
