@@ -106,12 +106,17 @@ ranModules <- function(x){
 
 ind1 <- net(visits, uniID, ID)
 
+#output dataset for repo
+write.csv(ind1, "Data/individual_network_bipartite.csv")
+
 sum(ind1)
 #project into a unipartite network
 one1 <- as.one.mode(ind1, fill = 0, project = "lower", weight = "TRUE")
-
+write.csv(one1, "Data/individual_plant_onemode.csv")
 #calculate centrality measures
 one1 <- graph_from_adjacency_matrix(one1)
+
+
 cls1 <- closeness(one1)
 ei1 <- eigen_centrality(one1)
 bt1 <- betweenness(one1)
@@ -125,8 +130,62 @@ all <- left_join(dat1, data, by = "uniID")
 #betweenness is zero inflated so a binary variable
 all <- mutate(all, btbin = ifelse(bt1 == 0, 0, 1))
 
+
+
+
 #filter out the over zero part to model separately
 bt <- filter(all, bt1 > 0)
+
+
+labels <- select(all, uniID, Species)
+labels <- labels[match(row.names(ind1), labels$uniID),]
+all.equal(labels$uniID, row.names(ind1))
+all.equal(labels$uniID, V(one1)$name)
+#ok, these are the same. let's overwrite the network labels with these simplified species labels
+
+V(one1)$name <- labels$Species
+labels$Species
+V(one1)$Species <- labels$Species
+pal1 <- heat.colors(10, alpha=1)
+
+library(colorspace)
+library(RColorBrewer)
+V(one1)$Species <- as.factor(V(one1)$Species)
+levels(V(one1)$Species) <- 1:10
+comps <- as.numeric(V(one1)$Species)
+comps
+colbar <- brewer.pal(n = 11, name = "Paired")
+#(max(comps)+1)
+V(one1)$color <- colbar[comps]
+
+#V(one1)$color <- pal1[V(one1)$Species]
+
+#making a figure for the unipartite
+plot(one1, rescale = TRUE, edge.arrow.size=0, edge.curved=0, vertex.shape= "circle",vertex.size = 2, vertex.frame.color="#555555", edge.color = "black", layout = layout.fruchterman.reingold, margin = 0, vertex.label = NA)
+
+#legend(x=-1.5, y=-1.1, pch=21,
+#col="#777777", pt.cex=2, cex=.8, bty="n", ncol=1)
+unique(sp)
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("center",fill = colbar, legend=c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearfolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana"))
+
+
+
+
+plot(l)
+sp <- V(one1)$Species
+V(one1)$Species
+#vertex.color="red", vertex.size = 3,
+all.equal(labels$uniID, V(one1)$name)
+vertex.label = NA
+V(one1)$name
+
+
+
+#let's try the bipartite network now
+plot(sp)
+
+
 ```
 
 ## Effective partners
@@ -318,13 +377,14 @@ check_collinearity(m6)
 ```{r, centrality measures}
 #degree centrality
 
-#choosing betweene error families
+#choosing between error families
 ggplot(all, aes(dg1)) + geom_density()
 m2 <- MASS::glm.nb(dg1 ~ N.flowers+ Quantity + shrub.density + day + Species, data = all)
 m3 <- glm(dg1 ~ N.flowers+ Quantity + shrub.density + day + Species, family = "poisson", data = all)
 check_overdispersion(m3)
 AIC(m2, m3)
 #nbinom2
+summary(m2)
 
 #check if interaction should be included
 m7 <- MASS::glm.nb(dg1 ~ Quantity+ shrub.density + day  * N.flowers + Species, data = all)
@@ -347,8 +407,8 @@ check_collinearity(m2)
 #betweeness
 ggplot(all, aes(bt1)) + geom_density()
 
-b2 <-glm(btbin ~ shrub.density + Quantity + day + N.flowers + Species, family = "binomial", data = all)
 
+b2 <-glm(btbin ~ shrub.density + Quantity + day + N.flowers + Species, family = "binomial", data = all)
 
 summary(b2)
 car::Anova(b2, type = 2)
@@ -363,6 +423,7 @@ check_collinearity(b2)
 
 
 #gaussian part
+
 
 
 b4 <- glm(log(bt1) ~ Quantity + shrub.density + day + N.flowers + Species, family = "gaussian", data = bt)
@@ -667,6 +728,29 @@ a + b + plot_layout(ncol = 2)
 c + d + plot_layout(ncol = 2)
 e + f + plot_layout(ncol = 1)
 
+```
+
+
+## Figure 1
+```{network figures, r}
+plotweb(sp)
+visweb(ind1)
+
+
+plotweb(sp, method = "cca", text.rot = 90, labsize =1.5, ybig = 0.7, low.y = 0.7, high.y = 0.98, plot.axes = FALSE, y.width.low = 0.05, y.width.high = 0.05, col.low = colbar, high.lablength = 30, low.lablength = 0)
+
+
+plotweb(ind1, method = "cca", text.rot = 90, labsize =1.5, ybig = 0.7, low.y = 0.7, high.y = 0.98, plot.axes = FALSE, y.width.low = 0.05, y.width.high = 0.05, col.low = colbar[comps], bor.col.low = colbar[comps], high.lablength = 00, low.lablength = 0)
+
+colbar
+colbar[comps]
+
+levels(V(one1)$Species) <- 1:10
+comps <- as.numeric(V(one1)$Species)
+comps
+colbar <- brewer.pal(n = 11, name = "Paired")
+#(max(comps)+1)
+V(one1)$color <- colbar[comps]
 
 
 ```
