@@ -137,55 +137,6 @@ all <- mutate(all, btbin = ifelse(bt1 == 0, 0, 1))
 bt <- filter(all, bt1 > 0)
 
 
-labels <- select(all, uniID, Species)
-labels <- labels[match(row.names(ind1), labels$uniID),]
-all.equal(labels$uniID, row.names(ind1))
-all.equal(labels$uniID, V(one1)$name)
-#ok, these are the same. let's overwrite the network labels with these simplified species labels
-
-V(one1)$name <- labels$Species
-labels$Species
-V(one1)$Species <- labels$Species
-pal1 <- heat.colors(10, alpha=1)
-
-library(colorspace)
-library(RColorBrewer)
-V(one1)$Species <- as.factor(V(one1)$Species)
-levels(V(one1)$Species) <- 1:10
-comps <- as.numeric(V(one1)$Species)
-comps
-colbar <- brewer.pal(n = 11, name = "Paired")
-#(max(comps)+1)
-V(one1)$color <- colbar[comps]
-
-#V(one1)$color <- pal1[V(one1)$Species]
-
-#making a figure for the unipartite
-plot(one1, rescale = TRUE, edge.arrow.size=0, edge.curved=0, vertex.shape= "circle",vertex.size = 2, vertex.frame.color="#555555", edge.color = "black", layout = layout.fruchterman.reingold, margin = 0, vertex.label = NA)
-
-#legend(x=-1.5, y=-1.1, pch=21,
-#col="#777777", pt.cex=2, cex=.8, bty="n", ncol=1)
-unique(sp)
-plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
-legend("center",fill = colbar, legend=c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearfolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana"))
-
-
-
-
-plot(l)
-sp <- V(one1)$Species
-V(one1)$Species
-#vertex.color="red", vertex.size = 3,
-all.equal(labels$uniID, V(one1)$name)
-vertex.label = NA
-V(one1)$name
-
-
-
-#let's try the bipartite network now
-plot(sp)
-
-
 ```
 
 ## Effective partners
@@ -293,7 +244,7 @@ mean(t$t)
 # EDA
 
 ```{r}
-labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Larrea tridentata", "Scutellaria mexicana", "Salvia dorri", "Echinocereus engelmannii", "Opuntia basilaris", "Cylindropuntia echinocarpa")
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
 
 ggplot(data, aes(N.flowers, Quantity)) + geom_point(aes(color = Species)) + geom_smooth(method = lm, se = FALSE, color = "black") + scale_color_discrete("", labels = labels) + ylab("Visitation Rate") + xlab("Floral display size")
 
@@ -324,7 +275,10 @@ m1 <- MASS::glm.nb(Quantity ~density + N.flowers + imp.den + Species, data = dat
 m1p <- glm(Quantity ~density + N.flowers + imp.den + Species, family = "poisson", data = data)    
 check_overdispersion(m1p)
 AIC(m1, m1p)
-#negative binomial #2 is the best
+#negative binomial #2 is the best due to overdispersion
+
+#correlation test
+cor.test(data$shrub.density, data$cactus.density)
 
 m1 <- MASS::glm.nb(Quantity ~density * N.flowers + day + Species, data = data)
 m2 <- MASS::glm.nb(Quantity ~ density + N.flowers + day + Species,  data = data)       
@@ -353,14 +307,12 @@ m11 <- MASS::glm.nb(Quantity ~ density + N.flowers * day + Species,  data = data
 #m9.imp <- MASS::glm.nb(Quantity ~ shrub.density + N.flowers * imp.den + Species, data = data)
 #AIC(m9.imp)
 
-knitr::kable(anova(m10, m9, m11, test = "Chisq"))
 
-anova(m9, m11)
-anova(m10, m11)
+knitr::kable(anova(m9, m10, test = "Chisq"))
+knitr::kable(anova(m10, m11, test = "Chisq"))
 
-#adding shrub density significantly improves model fits, but adding density does not.
+#adding shrub density significantly improves model fit more than density
 
-aic.visits <- AIC(m1, m2, m3, m4, m5, m6, m7, m8, m10, m11)
 knitr::kable(AIC(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11))
 
 #anova(m6, mnull)
@@ -572,7 +524,6 @@ summary(m1)
 options(scipen=999)
 knitr::kable(car::Anova(m1, type = 2))
 
-  
 ```
 
 # Network comparisons
@@ -599,6 +550,8 @@ write.csv(ind1, "Data/individal_network.csv")
 #i <- as.data.frame(networklevel(ind1))
 #write.csv(i, "data/Output/ind_network_indices.csv")
 i <- read.csv("data/Output/ind_network_indices.csv")
+
+sp <- net(visits, Species, ID)
 sp.m <- computeModules(sp)
 
 i.m <- computeModules(ind1)
@@ -668,13 +621,16 @@ mean(sp.H2$H2)
 
 
 
-
 ```{r}
 #violindles
+
+
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
+
 ggplot(filter(all, module != "NA"), aes(module, Quantity)) + geom_violin() + stat_summary(fun.y=mean, geom="point", shape=23, size=2) + geom_jitter(aes(color = Species, shape = Species), position=position_jitter(0.2)) + ylab("Visitation Rate") + xlab("Module") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_shape_manual(values=c(3, 16, 17, 3, 16, 17, 3, 16, 17), labels = labels) +scale_color_discrete(name = "Species", labels = labels)
  
-labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
+labels = c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearifolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana")
 
 ggplot(all, aes(module, N.flowers)) + geom_boxplot()
 ggplot(all, aes(module, shrub.density)) + geom_boxplot()
@@ -716,23 +672,72 @@ fig1 <- grid.arrange(a, b, c, d, ncol = 2, heights = c(1, 1.4), widths = c(1, 1.
 #Figure 2
 
 
-
 e <- ggplot(pl, aes(dg1, prop, color = type)) + geom_point()  +xlab("Degree Centrality")+ geom_smooth(method = lm) + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position = "none", aspect.ratio = 1)
 
 f <- ggplot(pl, aes(shrub.density, prop, color = type)) + geom_point() + geom_smooth(method = lm) +xlab("Shrub Density") + ylab("Proportion of Population") + scale_color_discrete(name = "", labels = c("Conspecific", "Heterospecific")) + theme_classic() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), legend.position = "bottom", aspect.ratio = 1) 
 e
 
 
+grid.arrange(e, f, ncol =1)
 
-a + b + plot_layout(ncol = 2)
-c + d + plot_layout(ncol = 2)
-e + f + plot_layout(ncol = 1)
 
 ```
 
 
 ## Figure 1
 ```{network figures, r}
+labels <- select(all, uniID, Species)
+labels <- labels[match(row.names(ind1), labels$uniID),]
+all.equal(labels$uniID, row.names(ind1))
+all.equal(labels$uniID, V(one1)$name)
+#ok, these are the same. let's overwrite the network labels with these simplified species labels
+
+V(one1)$name <- labels$Species
+labels$Species
+V(one1)$Species <- labels$Species
+pal1 <- heat.colors(10, alpha=1)
+
+library(colorspace)
+library(RColorBrewer)
+V(one1)$Species <- as.factor(V(one1)$Species)
+levels(V(one1)$Species) <- 1:10
+comps <- as.numeric(V(one1)$Species)
+comps
+colbar <- brewer.pal(n = 11, name = "Paired")
+#(max(comps)+1)
+V(one1)$color <- colbar[comps]
+
+#V(one1)$color <- pal1[V(one1)$Species]
+
+#making a figure for the unipartite
+plot(one1, rescale = TRUE, edge.arrow.size=0, edge.curved=0, vertex.shape= "circle",vertex.size = 2, vertex.frame.color="#555555", edge.color = "black", layout = layout.fruchterman.reingold, margin = 0, vertex.label = NA)
+
+#legend(x=-1.5, y=-1.1, pch=21,
+#col="#777777", pt.cex=2, cex=.8, bty="n", ncol=1)
+unique(sp)
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("center",fill = colbar, legend=c("Acamptopappus sphaerocephalus", "Eriogonum fasciculatum", "Ericameria cooperi", "Ericameria linearfolia", "Echinocereus engelmannii", "Larrea tridentata", "Opuntia basilaris", "Cylindropuntia echinocarpa", "Salvia dorri", "Scutellaria mexicana"))
+
+
+
+
+plot(l)
+sp <- V(one1)$Species
+V(one1)$Species
+#vertex.color="red", vertex.size = 3,
+all.equal(labels$uniID, V(one1)$name)
+vertex.label = NA
+V(one1)$name
+
+
+
+#let's try the bipartite network now
+plot(sp)
+
+
+
+
+
 plotweb(sp)
 visweb(ind1)
 
@@ -751,6 +756,6 @@ comps
 colbar <- brewer.pal(n = 11, name = "Paired")
 #(max(comps)+1)
 V(one1)$color <- colbar[comps]
-
-
 ```
+
+
